@@ -49,7 +49,7 @@ pub async fn get_fhir_patient(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match state.patient_repository.get_by_id(&id) {
+    match state.patient_repository.get_by_id(&id).await {
         Ok(Some(patient)) => {
             let fhir_patient = to_fhir_patient(&patient);
             (StatusCode::OK, Json(serde_json::to_value(fhir_patient).unwrap()))
@@ -79,7 +79,7 @@ pub async fn create_fhir_patient(
             }
 
             // Insert into database
-            match state.patient_repository.create(&patient) {
+            match state.patient_repository.create(&patient).await {
                 Ok(created_patient) => {
                     // Index in search engine
                     if let Err(e) = state.search_engine.index_patient(&created_patient) {
@@ -115,7 +115,7 @@ pub async fn update_fhir_patient(
             patient.id = id;
 
             // Update in database
-            match state.patient_repository.update(&patient) {
+            match state.patient_repository.update(&patient).await {
                 Ok(updated_patient) => {
                     // Update in search index
                     if let Err(e) = state.search_engine.index_patient(&updated_patient) {
@@ -143,7 +143,7 @@ pub async fn delete_fhir_patient(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match state.patient_repository.delete(&id) {
+    match state.patient_repository.delete(&id).await {
         Ok(()) => {
             (StatusCode::NO_CONTENT, Json(serde_json::json!({})))
         }
@@ -189,7 +189,7 @@ pub async fn search_fhir_patients(
                     }
                 };
 
-                match state.patient_repository.get_by_id(&patient_id) {
+                match state.patient_repository.get_by_id(&patient_id).await {
                     Ok(Some(patient)) => {
                         let fhir_patient = to_fhir_patient(&patient);
                         fhir_entries.push(serde_json::json!({

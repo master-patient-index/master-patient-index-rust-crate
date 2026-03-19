@@ -150,7 +150,7 @@ async fn test_health_check() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/health")
+                .uri("/api/health")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -173,7 +173,7 @@ async fn test_health_check() {
 - HTTP server responds to requests
 - Health endpoint returns 200 OK
 - Response contains expected JSON fields
-- Router correctly routes `/api/v1/health` to handler
+- Router correctly routes `/api/health` to handler
 
 #### 2.2 Create Patient Test
 
@@ -199,7 +199,7 @@ async fn test_create_patient() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/patients")
+                .uri("/api/patients")
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient_json).unwrap()))
                 .unwrap(),
@@ -270,7 +270,7 @@ async fn test_create_and_get_patient() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/patients")
+                .uri("/api/patients")
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient_json).unwrap()))
                 .unwrap(),
@@ -292,7 +292,7 @@ async fn test_create_and_get_patient() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/{}", patient_id))
+                .uri(&format!("/api/patients/{}", patient_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -347,7 +347,7 @@ async fn test_update_patient() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/patients")
+                .uri("/api/patients")
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient_json).unwrap()))
                 .unwrap(),
@@ -369,7 +369,7 @@ async fn test_update_patient() {
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(&format!("/api/patients/{}", patient.id))
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient).unwrap()))
                 .unwrap(),
@@ -424,7 +424,7 @@ async fn test_delete_patient() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/patients")
+                .uri("/api/patients")
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient_json).unwrap()))
                 .unwrap(),
@@ -445,7 +445,7 @@ async fn test_delete_patient() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(&format!("/api/patients/{}", patient.id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -458,7 +458,7 @@ async fn test_delete_patient() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(&format!("/api/patients/{}", patient.id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -506,7 +506,7 @@ async fn test_search_patients() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/patients")
+                .uri("/api/patients")
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient_json).unwrap()))
                 .unwrap(),
@@ -523,7 +523,7 @@ async fn test_search_patients() {
     let search_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/search?q={}&limit=10", family_name))
+                .uri(&format!("/api/patients/search?q={}&limit=10", family_name))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -561,7 +561,7 @@ async fn test_get_patient_not_found() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/patients/00000000-0000-0000-0000-000000000001")
+                .uri("/api/patients/00000000-0000-0000-0000-000000000001")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -581,18 +581,18 @@ async fn test_get_patient_not_found() {
 ### 3. Test Coverage
 
 **Endpoints Tested**:
-- ✅ `GET /api/v1/health` - Health check
-- ✅ `POST /api/v1/patients` - Create patient
-- ✅ `GET /api/v1/patients/{id}` - Get patient (found and not found)
-- ✅ `PUT /api/v1/patients/{id}` - Update patient
-- ✅ `DELETE /api/v1/patients/{id}` - Delete patient
-- ✅ `GET /api/v1/patients/search` - Search patients
+- ✅ `GET /api/health` - Health check
+- ✅ `POST /api/patients` - Create patient
+- ✅ `GET /api/patients/{id}` - Get patient (found and not found)
+- ✅ `PUT /api/patients/{id}` - Update patient
+- ✅ `DELETE /api/patients/{id}` - Delete patient
+- ✅ `GET /api/patients/search` - Search patients
 
 **Not Yet Tested** (Future):
-- ⏳ `POST /api/v1/patients/match` - Match patient
-- ⏳ `GET /api/v1/patients/{id}/audit` - Get patient audit logs
-- ⏳ `GET /api/v1/audit/recent` - Get recent audit logs
-- ⏳ `GET /api/v1/audit/user` - Get user audit logs
+- ⏳ `POST /api/patients/match` - Match patient
+- ⏳ `GET /api/patients/{id}/audit` - Get patient audit logs
+- ⏳ `GET /api/audit/recent` - Get recent audit logs
+- ⏳ `GET /api/audit/user` - Get user audit logs
 
 **Components Verified**:
 - ✅ Axum HTTP server and routing
@@ -630,12 +630,12 @@ Integration tests require:
    createdb mpi_test
 
    # Run migrations
-   DATABASE_URL=postgresql://localhost/mpi_test diesel migration run
+   DATABASE_URL=postgresql://localhost/master_patient_index_test diesel migration run
    ```
 
 2. **Environment Variables**: Test configuration
    ```bash
-   export DATABASE_URL=postgresql://localhost/mpi_test
+   export DATABASE_URL=postgresql://localhost/master_patient_index_test
    export SEARCH_INDEX_PATH=./test_index
    export MATCHING_THRESHOLD=0.7
    export SERVER_HOST=127.0.0.1
@@ -791,7 +791,7 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgresql://test:test@postgres:5432/mpi_test
+      DATABASE_URL: postgresql://test:test@postgres:5432/master_patient_index_test
       SEARCH_INDEX_PATH: /tmp/test_index
     command: cargo test --test api_integration_test
 ```
@@ -961,12 +961,12 @@ jobs:
       - name: Run Migrations
         run: diesel migration run
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/mpi_test
+          DATABASE_URL: postgresql://test:test@localhost:5432/master_patient_index_test
 
       - name: Run Integration Tests
         run: cargo test --test api_integration_test
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/mpi_test
+          DATABASE_URL: postgresql://test:test@localhost:5432/master_patient_index_test
           SEARCH_INDEX_PATH: ./test_index
           RUST_LOG: info
 ```
@@ -979,7 +979,7 @@ jobs:
 **Cause**: Missing environment variables
 **Fix**:
 ```bash
-export DATABASE_URL=postgresql://localhost/mpi_test
+export DATABASE_URL=postgresql://localhost/master_patient_index_test
 export SEARCH_INDEX_PATH=./test_index
 ```
 

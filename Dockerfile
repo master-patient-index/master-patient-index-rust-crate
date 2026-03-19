@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Master Patient Index
 # Stage 1: Build stage with full Rust toolchain
-FROM rust:1.75-slim as builder
+FROM rust:1.93-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -44,7 +44,7 @@ USER mpi
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/target/release/master_patient_index /app/mpi-server
+COPY --from=builder /app/target/release/master_patient_index /app/master_patient_index-server
 
 # Copy migrations for runtime schema management
 COPY --chown=mpi:mpi migrations ./migrations
@@ -63,4 +63,4 @@ ENV SERVER_PORT=8080
 ENV SEARCH_INDEX_PATH=/app/data/search_index
 
 # Run the application
-CMD ["/app/mpi-server"]
+CMD ["/app/master_patient_index-server"]

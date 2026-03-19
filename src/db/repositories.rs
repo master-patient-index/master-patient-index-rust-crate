@@ -1,14 +1,13 @@
 //! Repository pattern implementations for database operations
 
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
+use sea_orm::*;
+use sea_orm::sea_query::Expr;
 use chrono::Utc;
 use uuid::Uuid;
 
 use crate::models::{Patient, HumanName, Address, ContactPoint, Identifier, PatientLink};
 use crate::Result;
 use super::models::*;
-use super::schema::*;
 
 /// Audit context for tracking user actions
 #[derive(Debug, Clone)]
@@ -29,38 +28,39 @@ impl Default for AuditContext {
 }
 
 /// Patient repository trait
+#[async_trait::async_trait]
 pub trait PatientRepository: Send + Sync {
     /// Create a new patient
-    fn create(&self, patient: &Patient) -> Result<Patient>;
+    async fn create(&self, patient: &Patient) -> Result<Patient>;
 
     /// Get a patient by ID
-    fn get_by_id(&self, id: &Uuid) -> Result<Option<Patient>>;
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Patient>>;
 
     /// Update a patient
-    fn update(&self, patient: &Patient) -> Result<Patient>;
+    async fn update(&self, patient: &Patient) -> Result<Patient>;
 
     /// Delete a patient (soft delete)
-    fn delete(&self, id: &Uuid) -> Result<()>;
+    async fn delete(&self, id: &Uuid) -> Result<()>;
 
     /// Search patients by name
-    fn search(&self, query: &str) -> Result<Vec<Patient>>;
+    async fn search(&self, query: &str) -> Result<Vec<Patient>>;
 
     /// List all active patients (non-deleted)
-    fn list_active(&self, limit: i64, offset: i64) -> Result<Vec<Patient>>;
+    async fn list_active(&self, limit: u64, offset: u64) -> Result<Vec<Patient>>;
 }
 
-/// Diesel-based patient repository implementation
-pub struct DieselPatientRepository {
-    pool: Pool<ConnectionManager<PgConnection>>,
+/// SeaORM-based patient repository implementation
+pub struct SeaOrmPatientRepository {
+    db: DatabaseConnection,
     event_publisher: Option<std::sync::Arc<dyn crate::streaming::EventProducer>>,
     audit_log: Option<std::sync::Arc<super::audit::AuditLogRepository>>,
 }
 
-impl DieselPatientRepository {
-    /// Create a new repository with the given connection pool
-    pub fn new(pool: Pool<ConnectionManager<PgConnection>>) -> Self {
+impl SeaOrmPatientRepository {
+    /// Create a new repository with the given database connection
+    pub fn new(db: DatabaseConnection) -> Self {
         Self {
-            pool,
+            db,
             event_publisher: None,
             audit_log: None,
         }
@@ -94,7 +94,7 @@ impl DieselPatientRepository {
     }
 
     /// Log to audit trail if configured
-    fn log_audit(
+    async fn log_audit(
         &self,
         action: &str,
         entity_id: uuid::Uuid,
@@ -111,7 +111,7 @@ impl DieselPatientRepository {
                     context.user_id.clone(),
                     context.ip_address.clone(),
                     context.user_agent.clone(),
-                ),
+                ).await,
                 "UPDATE" => audit_log.log_update(
                     "Patient",
                     entity_id,
@@ -120,7 +120,7 @@ impl DieselPatientRepository {
                     context.user_id.clone(),
                     context.ip_address.clone(),
                     context.user_agent.clone(),
-                ),
+                ).await,
                 "DELETE" => audit_log.log_delete(
                     "Patient",
                     entity_id,
@@ -128,7 +128,7 @@ impl DieselPatientRepository {
                     context.user_id.clone(),
                     context.ip_address.clone(),
                     context.user_agent.clone(),
-                ),
+                ).await,
                 _ => Ok(()),
             };
 
@@ -138,88 +138,112 @@ impl DieselPatientRepository {
         }
     }
 
-    /// Get a database connection from the pool
-    fn get_conn(&self) -> Result<diesel::r2d2::PooledConnection<ConnectionManager<PgConnection>>> {
-        self.pool.get().map_err(|e| crate::Error::Pool(e.to_string()))
-    }
-
-    /// Convert domain Patient model to database models
-    fn to_db_models(&self, patient: &Patient) -> (NewDbPatient, Vec<NewDbPatientName>, Vec<NewDbPatientIdentifier>, Vec<NewDbPatientAddress>, Vec<NewDbPatientContact>, Vec<NewDbPatientLink>) {
-        let new_patient = NewDbPatient {
-            id: Some(patient.id),
-            active: patient.active,
-            gender: format!("{:?}", patient.gender),
-            birth_date: patient.birth_date,
-            deceased: patient.deceased,
-            deceased_datetime: patient.deceased_datetime,
-            marital_status: patient.marital_status.clone(),
-            multiple_birth: patient.multiple_birth,
-            managing_organization_id: patient.managing_organization,
-            created_by: None, // TODO: Get from context
+    /// Convert domain Patient model to SeaORM active models
+    fn to_active_models(&self, patient: &Patient) -> (
+        patients::ActiveModel,
+        Vec<patient_names::ActiveModel>,
+        Vec<patient_identifiers::ActiveModel>,
+        Vec<patient_addresses::ActiveModel>,
+        Vec<patient_contacts::ActiveModel>,
+        Vec<patient_links::ActiveModel>,
+    ) {
+        let new_patient = patients::ActiveModel {
+            id: Set(patient.id),
+            active: Set(patient.active),
+            gender: Set(format!("{:?}", patient.gender)),
+            birth_date: Set(patient.birth_date),
+            deceased: Set(patient.deceased),
+            deceased_datetime: Set(patient.deceased_datetime),
+            marital_status: Set(patient.marital_status.clone()),
+            multiple_birth: Set(patient.multiple_birth),
+            managing_organization_id: Set(patient.managing_organization),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            created_by: Set(None),
+            updated_by: Set(None),
+            deleted_at: Set(None),
+            deleted_by: Set(None),
         };
 
         // Primary name
-        let mut names = vec![NewDbPatientName {
-            patient_id: patient.id,
-            use_type: patient.name.use_type.as_ref().map(|u| format!("{:?}", u)),
-            family: patient.name.family.clone(),
-            given: patient.name.given.clone(),
-            prefix: patient.name.prefix.clone(),
-            suffix: patient.name.suffix.clone(),
-            is_primary: true,
+        let mut names = vec![patient_names::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            patient_id: Set(patient.id),
+            use_type: Set(patient.name.use_type.as_ref().map(|u| format!("{:?}", u))),
+            family: Set(patient.name.family.clone()),
+            given: Set(patient.name.given.clone()),
+            prefix: Set(patient.name.prefix.clone()),
+            suffix: Set(patient.name.suffix.clone()),
+            is_primary: Set(true),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }];
 
         // Additional names
         for add_name in &patient.additional_names {
-            names.push(NewDbPatientName {
-                patient_id: patient.id,
-                use_type: add_name.use_type.as_ref().map(|u| format!("{:?}", u)),
-                family: add_name.family.clone(),
-                given: add_name.given.clone(),
-                prefix: add_name.prefix.clone(),
-                suffix: add_name.suffix.clone(),
-                is_primary: false,
+            names.push(patient_names::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                patient_id: Set(patient.id),
+                use_type: Set(add_name.use_type.as_ref().map(|u| format!("{:?}", u))),
+                family: Set(add_name.family.clone()),
+                given: Set(add_name.given.clone()),
+                prefix: Set(add_name.prefix.clone()),
+                suffix: Set(add_name.suffix.clone()),
+                is_primary: Set(false),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
             });
         }
 
         // Identifiers
-        let identifiers = patient.identifiers.iter().map(|id| NewDbPatientIdentifier {
-            patient_id: patient.id,
-            use_type: id.use_type.as_ref().map(|u| format!("{:?}", u)),
-            identifier_type: format!("{:?}", id.identifier_type),
-            system: id.system.clone(),
-            value: id.value.clone(),
-            assigner: id.assigner.clone(),
+        let identifiers = patient.identifiers.iter().map(|id| patient_identifiers::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            patient_id: Set(patient.id),
+            use_type: Set(id.use_type.as_ref().map(|u| format!("{:?}", u))),
+            identifier_type: Set(format!("{:?}", id.identifier_type)),
+            system: Set(id.system.clone()),
+            value: Set(id.value.clone()),
+            assigner: Set(id.assigner.clone()),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }).collect();
 
         // Addresses
-        let addresses = patient.addresses.iter().enumerate().map(|(idx, addr)| NewDbPatientAddress {
-            patient_id: patient.id,
-            use_type: None, // Not in domain model
-            line1: addr.line1.clone(),
-            line2: addr.line2.clone(),
-            city: addr.city.clone(),
-            state: addr.state.clone(),
-            postal_code: addr.postal_code.clone(),
-            country: addr.country.clone(),
-            is_primary: idx == 0,
+        let addresses = patient.addresses.iter().enumerate().map(|(idx, addr)| patient_addresses::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            patient_id: Set(patient.id),
+            use_type: Set(None),
+            line1: Set(addr.line1.clone()),
+            line2: Set(addr.line2.clone()),
+            city: Set(addr.city.clone()),
+            state: Set(addr.state.clone()),
+            postal_code: Set(addr.postal_code.clone()),
+            country: Set(addr.country.clone()),
+            is_primary: Set(idx == 0),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }).collect();
 
         // Contacts
-        let contacts = patient.telecom.iter().enumerate().map(|(idx, cp)| NewDbPatientContact {
-            patient_id: patient.id,
-            system: format!("{:?}", cp.system),
-            value: cp.value.clone(),
-            use_type: cp.use_type.as_ref().map(|u| format!("{:?}", u)),
-            is_primary: idx == 0,
+        let contacts = patient.telecom.iter().enumerate().map(|(idx, cp)| patient_contacts::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            patient_id: Set(patient.id),
+            system: Set(format!("{:?}", cp.system)),
+            value: Set(cp.value.clone()),
+            use_type: Set(cp.use_type.as_ref().map(|u| format!("{:?}", u))),
+            is_primary: Set(idx == 0),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }).collect();
 
         // Links
-        let links = patient.links.iter().map(|link| NewDbPatientLink {
-            patient_id: patient.id,
-            other_patient_id: link.other_patient_id,
-            link_type: format!("{:?}", link.link_type),
-            created_by: None, // TODO: Get from context
+        let links = patient.links.iter().map(|link| patient_links::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            patient_id: Set(patient.id),
+            other_patient_id: Set(link.other_patient_id),
+            link_type: Set(format!("{:?}", link.link_type)),
+            created_at: Set(Utc::now()),
+            created_by: Set(None),
         }).collect();
 
         (new_patient, names, identifiers, addresses, contacts, links)
@@ -228,12 +252,12 @@ impl DieselPatientRepository {
     /// Convert database models to domain Patient model
     fn from_db_models(
         &self,
-        db_patient: DbPatient,
-        db_names: Vec<DbPatientName>,
-        db_identifiers: Vec<DbPatientIdentifier>,
-        db_addresses: Vec<DbPatientAddress>,
-        db_contacts: Vec<DbPatientContact>,
-        db_links: Vec<DbPatientLink>,
+        db_patient: patients::Model,
+        db_names: Vec<patient_names::Model>,
+        db_identifiers: Vec<patient_identifiers::Model>,
+        db_addresses: Vec<patient_addresses::Model>,
+        db_contacts: Vec<patient_contacts::Model>,
+        db_links: Vec<patient_links::Model>,
     ) -> Result<Patient> {
         use crate::models::{Gender, NameUse, ContactPointSystem, ContactPointUse, LinkType, IdentifierType, IdentifierUse};
 
@@ -323,6 +347,7 @@ impl DieselPatientRepository {
         // Addresses
         let addresses = db_addresses.iter()
             .map(|addr| Address {
+                use_type: None,
                 line1: addr.line1.clone(),
                 line2: addr.line2.clone(),
                 city: addr.city.clone(),
@@ -395,6 +420,9 @@ impl DieselPatientRepository {
             addresses,
             marital_status: db_patient.marital_status,
             multiple_birth: db_patient.multiple_birth,
+            tax_id: None, // TODO: Load from DB
+            documents: vec![], // TODO: Load from DB
+            emergency_contacts: vec![], // TODO: Load from DB
             photo: vec![], // Not stored in DB yet
             managing_organization: db_patient.managing_organization_id,
             links,
@@ -402,64 +430,87 @@ impl DieselPatientRepository {
             updated_at: db_patient.updated_at,
         })
     }
+
+    /// Load all associated data for a patient
+    async fn load_associations(&self, patient_id: &Uuid) -> Result<(
+        Vec<patient_names::Model>,
+        Vec<patient_identifiers::Model>,
+        Vec<patient_addresses::Model>,
+        Vec<patient_contacts::Model>,
+        Vec<patient_links::Model>,
+    )> {
+        let db_names = patient_names::Entity::find()
+            .filter(patient_names::Column::PatientId.eq(*patient_id))
+            .all(&self.db)
+            .await?;
+
+        let db_identifiers = patient_identifiers::Entity::find()
+            .filter(patient_identifiers::Column::PatientId.eq(*patient_id))
+            .all(&self.db)
+            .await?;
+
+        let db_addresses = patient_addresses::Entity::find()
+            .filter(patient_addresses::Column::PatientId.eq(*patient_id))
+            .all(&self.db)
+            .await?;
+
+        let db_contacts = patient_contacts::Entity::find()
+            .filter(patient_contacts::Column::PatientId.eq(*patient_id))
+            .all(&self.db)
+            .await?;
+
+        let db_links = patient_links::Entity::find()
+            .filter(patient_links::Column::PatientId.eq(*patient_id))
+            .all(&self.db)
+            .await?;
+
+        Ok((db_names, db_identifiers, db_addresses, db_contacts, db_links))
+    }
 }
 
-impl PatientRepository for DieselPatientRepository {
-    fn create(&self, patient: &Patient) -> Result<Patient> {
-        let mut conn = self.get_conn()?;
+#[async_trait::async_trait]
+impl PatientRepository for SeaOrmPatientRepository {
+    async fn create(&self, patient: &Patient) -> Result<Patient> {
+        let txn = self.db.begin().await?;
 
-        let result = conn.transaction(|conn| {
-            let (new_patient, new_names, new_identifiers, new_addresses, new_contacts, new_links) =
-                self.to_db_models(patient);
+        let (new_patient, new_names, new_identifiers, new_addresses, new_contacts, new_links) =
+            self.to_active_models(patient);
 
-            // Insert patient
-            let db_patient: DbPatient = diesel::insert_into(patients::table)
-                .values(&new_patient)
-                .get_result(conn)?;
+        // Insert patient
+        let db_patient = new_patient.insert(&txn).await?;
 
-            // Insert names
-            let db_names: Vec<DbPatientName> = diesel::insert_into(patient_names::table)
-                .values(&new_names)
-                .get_results(conn)?;
+        // Insert names
+        for name in new_names {
+            name.insert(&txn).await?;
+        }
 
-            // Insert identifiers
-            let db_identifiers: Vec<DbPatientIdentifier> = if !new_identifiers.is_empty() {
-                diesel::insert_into(patient_identifiers::table)
-                    .values(&new_identifiers)
-                    .get_results(conn)?
-            } else {
-                vec![]
-            };
+        // Insert identifiers
+        for identifier in new_identifiers {
+            identifier.insert(&txn).await?;
+        }
 
-            // Insert addresses
-            let db_addresses: Vec<DbPatientAddress> = if !new_addresses.is_empty() {
-                diesel::insert_into(patient_addresses::table)
-                    .values(&new_addresses)
-                    .get_results(conn)?
-            } else {
-                vec![]
-            };
+        // Insert addresses
+        for address in new_addresses {
+            address.insert(&txn).await?;
+        }
 
-            // Insert contacts
-            let db_contacts: Vec<DbPatientContact> = if !new_contacts.is_empty() {
-                diesel::insert_into(patient_contacts::table)
-                    .values(&new_contacts)
-                    .get_results(conn)?
-            } else {
-                vec![]
-            };
+        // Insert contacts
+        for contact in new_contacts {
+            contact.insert(&txn).await?;
+        }
 
-            // Insert links
-            let db_links: Vec<DbPatientLink> = if !new_links.is_empty() {
-                diesel::insert_into(patient_links::table)
-                    .values(&new_links)
-                    .get_results(conn)?
-            } else {
-                vec![]
-            };
+        // Insert links
+        for link in new_links {
+            link.insert(&txn).await?;
+        }
 
-            self.from_db_models(db_patient, db_names, db_identifiers, db_addresses, db_contacts, db_links)
-        })?;
+        txn.commit().await?;
+
+        // Load associations
+        let (db_names, db_identifiers, db_addresses, db_contacts, db_links) =
+            self.load_associations(&db_patient.id).await?;
+
+        let result = self.from_db_models(db_patient, db_names, db_identifiers, db_addresses, db_contacts, db_links)?;
 
         // Publish event
         self.publish_event(crate::streaming::PatientEvent::Created {
@@ -469,128 +520,99 @@ impl PatientRepository for DieselPatientRepository {
 
         // Log audit
         if let Ok(patient_json) = serde_json::to_value(&result) {
-            self.log_audit("CREATE", result.id, None, Some(patient_json), &AuditContext::default());
+            self.log_audit("CREATE", result.id, None, Some(patient_json), &AuditContext::default()).await;
         }
 
         Ok(result)
     }
 
-    fn get_by_id(&self, id: &Uuid) -> Result<Option<Patient>> {
-        let mut conn = self.get_conn()?;
-
-        // Get patient
-        let db_patient: Option<DbPatient> = patients::table
-            .filter(patients::id.eq(id))
-            .filter(patients::deleted_at.is_null())
-            .first(&mut conn)
-            .optional()?;
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Patient>> {
+        let db_patient = patients::Entity::find_by_id(*id)
+            .filter(patients::Column::DeletedAt.is_null())
+            .one(&self.db)
+            .await?;
 
         let db_patient = match db_patient {
             Some(p) => p,
             None => return Ok(None),
         };
 
-        // Get associated data
-        let db_names: Vec<DbPatientName> = patient_names::table
-            .filter(patient_names::patient_id.eq(id))
-            .load(&mut conn)?;
-
-        let db_identifiers: Vec<DbPatientIdentifier> = patient_identifiers::table
-            .filter(patient_identifiers::patient_id.eq(id))
-            .load(&mut conn)?;
-
-        let db_addresses: Vec<DbPatientAddress> = patient_addresses::table
-            .filter(patient_addresses::patient_id.eq(id))
-            .load(&mut conn)?;
-
-        let db_contacts: Vec<DbPatientContact> = patient_contacts::table
-            .filter(patient_contacts::patient_id.eq(id))
-            .load(&mut conn)?;
-
-        let db_links: Vec<DbPatientLink> = patient_links::table
-            .filter(patient_links::patient_id.eq(id))
-            .load(&mut conn)?;
+        let (db_names, db_identifiers, db_addresses, db_contacts, db_links) =
+            self.load_associations(id).await?;
 
         self.from_db_models(db_patient, db_names, db_identifiers, db_addresses, db_contacts, db_links)
             .map(Some)
     }
 
-    fn update(&self, patient: &Patient) -> Result<Patient> {
-        let mut conn = self.get_conn()?;
-
+    async fn update(&self, patient: &Patient) -> Result<Patient> {
         // Get old values for audit
-        let old_patient = self.get_by_id(&patient.id)?;
+        let old_patient = self.get_by_id(&patient.id).await?;
 
-        let result = conn.transaction(|conn| {
-            // Update patient
-            let update_patient = UpdateDbPatient {
-                active: Some(patient.active),
-                gender: Some(format!("{:?}", patient.gender)),
-                birth_date: patient.birth_date,
-                deceased: Some(patient.deceased),
-                deceased_datetime: patient.deceased_datetime,
-                marital_status: patient.marital_status.clone(),
-                multiple_birth: patient.multiple_birth,
-                managing_organization_id: patient.managing_organization,
-                updated_by: None, // TODO: Get from context
-            };
+        let txn = self.db.begin().await?;
 
-            diesel::update(patients::table.filter(patients::id.eq(patient.id)))
-                .set(&update_patient)
-                .execute(conn)?;
+        // Update patient
+        let update_model = patients::ActiveModel {
+            id: Set(patient.id),
+            active: Set(patient.active),
+            gender: Set(format!("{:?}", patient.gender)),
+            birth_date: Set(patient.birth_date),
+            deceased: Set(patient.deceased),
+            deceased_datetime: Set(patient.deceased_datetime),
+            marital_status: Set(patient.marital_status.clone()),
+            multiple_birth: Set(patient.multiple_birth),
+            managing_organization_id: Set(patient.managing_organization),
+            updated_at: Set(Utc::now()),
+            updated_by: Set(None),
+            ..Default::default()
+        };
+        update_model.update(&txn).await?;
 
-            // Delete existing associated data
-            diesel::delete(patient_names::table.filter(patient_names::patient_id.eq(patient.id)))
-                .execute(conn)?;
+        // Delete existing associated data
+        patient_names::Entity::delete_many()
+            .filter(patient_names::Column::PatientId.eq(patient.id))
+            .exec(&txn).await?;
 
-            diesel::delete(patient_identifiers::table.filter(patient_identifiers::patient_id.eq(patient.id)))
-                .execute(conn)?;
+        patient_identifiers::Entity::delete_many()
+            .filter(patient_identifiers::Column::PatientId.eq(patient.id))
+            .exec(&txn).await?;
 
-            diesel::delete(patient_addresses::table.filter(patient_addresses::patient_id.eq(patient.id)))
-                .execute(conn)?;
+        patient_addresses::Entity::delete_many()
+            .filter(patient_addresses::Column::PatientId.eq(patient.id))
+            .exec(&txn).await?;
 
-            diesel::delete(patient_contacts::table.filter(patient_contacts::patient_id.eq(patient.id)))
-                .execute(conn)?;
+        patient_contacts::Entity::delete_many()
+            .filter(patient_contacts::Column::PatientId.eq(patient.id))
+            .exec(&txn).await?;
 
-            diesel::delete(patient_links::table.filter(patient_links::patient_id.eq(patient.id)))
-                .execute(conn)?;
+        patient_links::Entity::delete_many()
+            .filter(patient_links::Column::PatientId.eq(patient.id))
+            .exec(&txn).await?;
 
-            // Re-insert associated data
-            let (_, new_names, new_identifiers, new_addresses, new_contacts, new_links) =
-                self.to_db_models(patient);
+        // Re-insert associated data
+        let (_, new_names, new_identifiers, new_addresses, new_contacts, new_links) =
+            self.to_active_models(patient);
 
-            diesel::insert_into(patient_names::table)
-                .values(&new_names)
-                .execute(conn)?;
+        for name in new_names {
+            name.insert(&txn).await?;
+        }
+        for identifier in new_identifiers {
+            identifier.insert(&txn).await?;
+        }
+        for address in new_addresses {
+            address.insert(&txn).await?;
+        }
+        for contact in new_contacts {
+            contact.insert(&txn).await?;
+        }
+        for link in new_links {
+            link.insert(&txn).await?;
+        }
 
-            if !new_identifiers.is_empty() {
-                diesel::insert_into(patient_identifiers::table)
-                    .values(&new_identifiers)
-                    .execute(conn)?;
-            }
+        txn.commit().await?;
 
-            if !new_addresses.is_empty() {
-                diesel::insert_into(patient_addresses::table)
-                    .values(&new_addresses)
-                    .execute(conn)?;
-            }
-
-            if !new_contacts.is_empty() {
-                diesel::insert_into(patient_contacts::table)
-                    .values(&new_contacts)
-                    .execute(conn)?;
-            }
-
-            if !new_links.is_empty() {
-                diesel::insert_into(patient_links::table)
-                    .values(&new_links)
-                    .execute(conn)?;
-            }
-
-            // Fetch and return updated patient
-            self.get_by_id(&patient.id)?
-                .ok_or_else(|| crate::Error::Validation("Patient not found after update".to_string()))
-        })?;
+        // Fetch and return updated patient
+        let result = self.get_by_id(&patient.id).await?
+            .ok_or_else(|| crate::Error::Validation("Patient not found after update".to_string()))?;
 
         // Publish event
         self.publish_event(crate::streaming::PatientEvent::Updated {
@@ -601,26 +623,25 @@ impl PatientRepository for DieselPatientRepository {
         // Log audit
         if let Some(old_json) = old_patient.as_ref().and_then(|p| serde_json::to_value(p).ok()) {
             if let Ok(new_json) = serde_json::to_value(&result) {
-                self.log_audit("UPDATE", result.id, Some(old_json), Some(new_json), &AuditContext::default());
+                self.log_audit("UPDATE", result.id, Some(old_json), Some(new_json), &AuditContext::default()).await;
             }
         }
 
         Ok(result)
     }
 
-    fn delete(&self, id: &Uuid) -> Result<()> {
-        let mut conn = self.get_conn()?;
-
+    async fn delete(&self, id: &Uuid) -> Result<()> {
         // Get old values for audit
-        let old_patient = self.get_by_id(id)?;
+        let old_patient = self.get_by_id(id).await?;
 
         // Soft delete
-        diesel::update(patients::table.filter(patients::id.eq(id)))
-            .set((
-                patients::deleted_at.eq(Some(Utc::now())),
-                patients::deleted_by.eq(Some("system".to_string())), // TODO: Get from context
-            ))
-            .execute(&mut conn)?;
+        let update_model = patients::ActiveModel {
+            id: Set(*id),
+            deleted_at: Set(Some(Utc::now())),
+            deleted_by: Set(Some("system".to_string())),
+            ..Default::default()
+        };
+        update_model.update(&self.db).await?;
 
         // Publish event
         self.publish_event(crate::streaming::PatientEvent::Deleted {
@@ -631,29 +652,28 @@ impl PatientRepository for DieselPatientRepository {
         // Log audit
         if let Some(old_patient) = old_patient {
             if let Ok(old_json) = serde_json::to_value(&old_patient) {
-                self.log_audit("DELETE", *id, Some(old_json), None, &AuditContext::default());
+                self.log_audit("DELETE", *id, Some(old_json), None, &AuditContext::default()).await;
             }
         }
 
         Ok(())
     }
 
-    fn search(&self, query: &str) -> Result<Vec<Patient>> {
-        let mut conn = self.get_conn()?;
-
-        // Search by family name (simple implementation)
+    async fn search(&self, query: &str) -> Result<Vec<Patient>> {
         let search_pattern = format!("%{}%", query.to_lowercase());
 
-        let patient_ids: Vec<Uuid> = patient_names::table
-            .filter(diesel::dsl::sql::<diesel::sql_types::Bool>(&format!("LOWER(family) LIKE '{}'", search_pattern)))
-            .select(patient_names::patient_id)
+        let patient_ids: Vec<Uuid> = patient_names::Entity::find()
+            .filter(Expr::cust_with_values("LOWER(family) LIKE $1", [search_pattern]))
+            .select_only()
+            .column(patient_names::Column::PatientId)
             .distinct()
-            .load(&mut conn)?;
+            .into_tuple()
+            .all(&self.db)
+            .await?;
 
-        // Fetch full patient records
         let mut patients = Vec::new();
         for patient_id in patient_ids {
-            if let Some(patient) = self.get_by_id(&patient_id)? {
+            if let Some(patient) = self.get_by_id(&patient_id).await? {
                 patients.push(patient);
             }
         }
@@ -661,20 +681,18 @@ impl PatientRepository for DieselPatientRepository {
         Ok(patients)
     }
 
-    fn list_active(&self, limit: i64, offset: i64) -> Result<Vec<Patient>> {
-        let mut conn = self.get_conn()?;
-
-        let patient_ids: Vec<Uuid> = patients::table
-            .filter(patients::deleted_at.is_null())
-            .filter(patients::active.eq(true))
-            .select(patients::id)
+    async fn list_active(&self, limit: u64, offset: u64) -> Result<Vec<Patient>> {
+        let db_patients: Vec<patients::Model> = patients::Entity::find()
+            .filter(patients::Column::DeletedAt.is_null())
+            .filter(patients::Column::Active.eq(true))
             .limit(limit)
             .offset(offset)
-            .load(&mut conn)?;
+            .all(&self.db)
+            .await?;
 
         let mut patients = Vec::new();
-        for patient_id in patient_ids {
-            if let Some(patient) = self.get_by_id(&patient_id)? {
+        for db_patient in db_patients {
+            if let Some(patient) = self.get_by_id(&db_patient.id).await? {
                 patients.push(patient);
             }
         }

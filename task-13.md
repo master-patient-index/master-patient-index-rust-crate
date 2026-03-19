@@ -202,7 +202,7 @@ IMAGE_NAME: ${{ github.repository }}
 1. Copy `.env.example` to `.env`
 2. Start services: `docker-compose up -d`
 3. Wait 10 seconds for startup
-4. Test health endpoint: `curl -f http://localhost:8080/api/v1/health`
+4. Test health endpoint: `curl -f http://localhost:8080/api/health`
 5. Cleanup: `docker-compose down -v`
 
 **Image Tags Generated:**
@@ -365,7 +365,7 @@ ssh user@staging-server "docker-compose up -d"
 
 **Deployment Verification:**
 ```bash
-curl -f https://api.example.com/api/v1/health || exit 1
+curl -f https://api.example.com/api/health || exit 1
 ```
 
 **Rollback Example (Kubernetes):**
@@ -875,7 +875,7 @@ diesel migration revert
   run: |
     # Check health endpoint
     for i in {1..5}; do
-      curl -f https://api.example.com/api/v1/health && break
+      curl -f https://api.example.com/api/health && break
       sleep 10
     done
 

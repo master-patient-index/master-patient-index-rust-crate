@@ -133,7 +133,7 @@ USER mpi
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/target/release/master_patient_index /app/mpi-server
+COPY --from=builder /app/target/release/master_patient_index /app/master_patient_index-server
 
 # Copy migrations for runtime schema management
 COPY --chown=mpi:mpi migrations ./migrations
@@ -143,7 +143,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
 # Set environment defaults (can be overridden)
 ENV RUST_LOG=info
@@ -152,7 +152,7 @@ ENV SERVER_PORT=8080
 ENV SEARCH_INDEX_PATH=/app/data/search_index
 
 # Run the application
-CMD ["/app/mpi-server"]
+CMD ["/app/master_patient_index-server"]
 ```
 
 **Key Features**:
@@ -220,7 +220,7 @@ services:
     volumes:
       - search_index:/app/data/search_index
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -318,7 +318,7 @@ services:
       postgres-test:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/mpi_test
+      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/master_patient_index_test
       SEARCH_INDEX_PATH: /tmp/test_index
       RUST_LOG: info
       RUST_BACKTRACE: 1
@@ -403,7 +403,7 @@ Created comprehensive environment templates:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://mpi_user:mpi_password@localhost:5432/mpi
+DATABASE_URL=postgresql://master_patient_index_user:mpi_password@localhost:5432/master_patient_index
 DATABASE_MAX_CONNECTIONS=10
 
 # Server
@@ -425,7 +425,7 @@ RUST_LOG=info
 
 ```bash
 # Database - Use SSL and strong password
-DATABASE_URL=postgresql://mpi_prod:STRONG_PASSWORD@db-host:5432/mpi_production?sslmode=require
+DATABASE_URL=postgresql://master_patient_index_prod:STRONG_PASSWORD@db-host:5432/master_patient_index_production?sslmode=require
 DATABASE_MAX_CONNECTIONS=50
 
 # Server
@@ -537,7 +537,7 @@ USER mpi
 **Implementation**:
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+    CMD curl -f http://localhost:8080/api/health || exit 1
 ```
 
 ### 4. Named Volumes for Persistence
@@ -695,8 +695,8 @@ jobs:
       - name: Push to Registry
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag mpi-server:${{ github.sha }} registry.io/mpi-server:latest
-          docker push registry.io/mpi-server:latest
+          docker tag mpi-server:${{ github.sha }} registry.io/master_patient_index-server:latest
+          docker push registry.io/master_patient_index-server:latest
 ```
 
 ### Deployment Pipeline
@@ -725,7 +725,7 @@ docker-compose logs --no-color > logs.txt
 Health check endpoint provides basic metrics:
 
 ```bash
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8080/api/health
 ```
 
 **Future**: Prometheus metrics endpoint (`/metrics`)
@@ -771,11 +771,11 @@ spec:
               key: database-url
         readinessProbe:
           httpGet:
-            path: /api/v1/health
+            path: /api/health
             port: 8080
         livenessProbe:
           httpGet:
-            path: /api/v1/health
+            path: /api/health
             port: 8080
 ```
 

@@ -870,7 +870,7 @@ let fhir_routes = Router::new()
     .with_state(app_state);
 
 Router::new()
-    .nest("/api/v1", rest_routes)
+    .nest("/api", rest_routes)
     .nest("/fhir", fhir_routes)
 ```
 

@@ -1,8 +1,5 @@
-# Diesel configuration file
-
-[print_schema]
-file = "src/db/schema.rs"
-custom_type_derives = ["diesel::query_builder::QueryId"]
-
-[migrations_directory]
-dir = "migrations"
+# SeaORM configuration
+# Note: This file is kept for reference. SeaORM uses sea-orm-cli for entity generation.
+# To generate entities: sea-orm-cli generate entity -o src/db/entity
+# To run migrations: sea-orm-cli migrate up
+# To revert migrations: sea-orm-cli migrate down

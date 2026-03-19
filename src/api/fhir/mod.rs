@@ -207,7 +207,7 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
 
 /// Convert FHIR Patient resource to internal Patient model
 pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
-    use crate::models::{HumanName, NameUse, Gender, ContactPointSystem, ContactPointUse, PatientLink, LinkType};
+    use crate::models::{HumanName, NameUse, Gender, ContactPointSystem, ContactPointUse};
     use crate::api::fhir::resources::FhirDeceased;
     use uuid::Uuid;
     use chrono::Utc;
@@ -295,6 +295,7 @@ pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
             .map(|faddr| {
                 let lines = faddr.line.clone().unwrap_or_default();
                 Address {
+                    use_type: None,
                     line1: lines.get(0).cloned(),
                     line2: lines.get(1).cloned(),
                     city: faddr.city.clone(),
@@ -355,6 +356,9 @@ pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
         deceased,
         deceased_datetime,
         addresses,
+        tax_id: None,
+        documents: vec![],
+        emergency_contacts: vec![],
         marital_status: None, // TODO: Parse marital status
         multiple_birth: None, // TODO: Parse multiple birth
         photo: vec![],

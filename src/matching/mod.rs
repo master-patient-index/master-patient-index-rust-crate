@@ -5,6 +5,7 @@ use crate::config::MatchingConfig;
 use crate::Result;
 
 pub mod algorithms;
+pub mod phonetic;
 pub mod scoring;
 
 pub use scoring::{ProbabilisticScorer, DeterministicScorer, MatchQuality};
@@ -18,13 +19,15 @@ pub struct MatchResult {
 }
 
 /// Breakdown of match score components
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct MatchScoreBreakdown {
     pub name_score: f64,
     pub birth_date_score: f64,
     pub gender_score: f64,
     pub address_score: f64,
     pub identifier_score: f64,
+    pub tax_id_score: f64,
+    pub document_score: f64,
 }
 
 impl MatchScoreBreakdown {
@@ -46,6 +49,12 @@ impl MatchScoreBreakdown {
         }
         if self.identifier_score >= 0.95 {
             parts.push("identifier");
+        }
+        if self.tax_id_score >= 1.0 {
+            parts.push("tax_id");
+        }
+        if self.document_score >= 0.95 {
+            parts.push("document");
         }
 
         if parts.is_empty() {
@@ -188,6 +197,9 @@ mod tests {
             telecom: vec![],
             gender: Gender::Male,
             birth_date: dob,
+            tax_id: None,
+            documents: vec![],
+            emergency_contacts: vec![],
             deceased: false,
             deceased_datetime: None,
             addresses: vec![],
@@ -204,7 +216,7 @@ mod tests {
     #[test]
     fn test_probabilistic_find_matches() {
         let config = MatchingConfig {
-            threshold_score: 0.70, // Lower threshold for test
+            threshold_score: 0.60, // Lower threshold for test (name+dob+gender only = ~0.65)
             exact_match_score: 1.0,
             fuzzy_match_score: 0.8,
         };
@@ -252,11 +264,72 @@ mod tests {
             gender_score: 1.0,
             address_score: 0.70,
             identifier_score: 0.40,
+            tax_id_score: 0.0,
+            document_score: 0.0,
         };
 
         let summary = breakdown.summary();
         assert!(summary.contains("name"));
         assert!(summary.contains("DOB"));
         assert!(summary.contains("gender"));
+    }
+
+    #[test]
+    fn test_probabilistic_matcher_with_threshold() {
+        let config = MatchingConfig {
+            threshold_score: 0.60,
+            exact_match_score: 1.0,
+            fuzzy_match_score: 0.8,
+        };
+        let matcher = ProbabilisticMatcher::new(config);
+
+        let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
+        let patient = create_test_patient("Smith", "John", dob);
+        let candidate = create_test_patient("Smith", "John", dob);
+
+        let result = matcher.match_patients(&patient, &candidate).unwrap();
+        // Name + DOB + Gender matching should exceed 0.60
+        assert!(result.score >= 0.60, "Exact match should exceed threshold 0.60, got {}", result.score);
+        assert!(matcher.is_match(result.score));
+    }
+
+    #[test]
+    fn test_match_result_ordering_by_score() {
+        let config = MatchingConfig {
+            threshold_score: 0.10, // Very low to catch all
+            exact_match_score: 1.0,
+            fuzzy_match_score: 0.8,
+        };
+        let matcher = ProbabilisticMatcher::new(config);
+
+        let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
+        let patient = create_test_patient("Smith", "John", dob);
+
+        let candidates = vec![
+            create_test_patient("Johnson", "Bob", NaiveDate::from_ymd_opt(1995, 5, 20)), // Low match
+            create_test_patient("Smith", "John", dob), // Exact match
+            create_test_patient("Smyth", "John", dob), // Close match
+        ];
+
+        let matches = matcher.find_matches(&patient, &candidates).unwrap();
+        assert!(!matches.is_empty(), "Should find at least one match");
+
+        // Results should be sorted descending by score
+        for window in matches.windows(2) {
+            assert!(window[0].score >= window[1].score,
+                "Results should be sorted descending: {} >= {}", window[0].score, window[1].score);
+        }
+    }
+
+    #[test]
+    fn test_empty_candidates_list() {
+        let config = create_test_config();
+        let matcher = ProbabilisticMatcher::new(config);
+
+        let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
+        let patient = create_test_patient("Smith", "John", dob);
+
+        let matches = matcher.find_matches(&patient, &[]).unwrap();
+        assert!(matches.is_empty(), "Empty candidates should produce empty results");
     }
 }

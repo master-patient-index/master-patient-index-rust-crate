@@ -3,12 +3,8 @@
 use tantivy::{
     schema::{Schema, Field, STORED, TEXT, STRING, FAST},
     Index, IndexWriter, IndexReader, ReloadPolicy,
-    collector::TopDocs,
-    query::QueryParser,
-    doc,
 };
 use std::path::Path;
-use uuid::Uuid;
 
 use crate::Result;
 
@@ -182,7 +178,7 @@ impl PatientIndex {
 
     /// Optimize the index (wait for merges to complete)
     pub fn optimize(&self) -> Result<()> {
-        let mut writer = self.writer(50)?;
+        let writer = self.writer(50)?;
         writer
             .wait_merging_threads()
             .map_err(|e| crate::Error::Search(format!("Failed to optimize index: {}", e)))?;
@@ -235,5 +231,156 @@ mod tests {
         // Second call opens
         let index2 = PatientIndex::create_or_open(temp_dir.path()).unwrap();
         assert_eq!(index2.stats().unwrap().num_docs, 0);
+    }
+
+    #[test]
+    fn test_index_patient_and_retrieve() {
+        let temp_dir = TempDir::new().unwrap();
+        let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
+        let schema = patient_index.schema();
+
+        let mut writer = patient_index.writer(50).unwrap();
+        let patient_id = uuid::Uuid::new_v4().to_string();
+
+        let mut doc = tantivy::TantivyDocument::default();
+        doc.add_text(schema.id, &patient_id);
+        doc.add_text(schema.family_name, "Smith");
+        doc.add_text(schema.given_names, "John");
+        doc.add_text(schema.full_name, "John Smith");
+        doc.add_text(schema.birth_date, "1980-01-15");
+        doc.add_text(schema.gender, "male");
+        doc.add_text(schema.active, "true");
+
+        writer.add_document(doc).unwrap();
+        writer.commit().unwrap();
+
+        patient_index.reload().unwrap();
+
+        let stats = patient_index.stats().unwrap();
+        assert_eq!(stats.num_docs, 1, "Index should contain 1 document");
+    }
+
+    #[test]
+    fn test_fuzzy_search_typo() {
+        use tantivy::collector::TopDocs;
+        use tantivy::query::FuzzyTermQuery;
+        use tantivy::schema::Term;
+
+        let temp_dir = TempDir::new().unwrap();
+        let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
+        let schema = patient_index.schema();
+
+        let mut writer = patient_index.writer(50).unwrap();
+        let mut doc = tantivy::TantivyDocument::default();
+        doc.add_text(schema.id, &uuid::Uuid::new_v4().to_string());
+        doc.add_text(schema.family_name, "johnson");
+        doc.add_text(schema.given_names, "robert");
+        doc.add_text(schema.full_name, "robert johnson");
+        doc.add_text(schema.active, "true");
+        writer.add_document(doc).unwrap();
+        writer.commit().unwrap();
+
+        patient_index.reload().unwrap();
+
+        let searcher = patient_index.reader().searcher();
+        let term = Term::from_field_text(schema.family_name, "jonson"); // typo
+        let query = FuzzyTermQuery::new(term, 1, true);
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
+        assert_eq!(top_docs.len(), 1, "Fuzzy search should find 'johnson' with typo 'jonson'");
+    }
+
+    #[test]
+    fn test_delete_patient_from_index() {
+        use tantivy::schema::Term;
+
+        let temp_dir = TempDir::new().unwrap();
+        let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
+        let schema = patient_index.schema();
+
+        let patient_id = uuid::Uuid::new_v4().to_string();
+
+        {
+            let mut writer = patient_index.writer(50).unwrap();
+            let mut doc = tantivy::TantivyDocument::default();
+            doc.add_text(schema.id, &patient_id);
+            doc.add_text(schema.family_name, "Smith");
+            doc.add_text(schema.given_names, "John");
+            doc.add_text(schema.full_name, "John Smith");
+            doc.add_text(schema.active, "true");
+            writer.add_document(doc).unwrap();
+            writer.commit().unwrap();
+            // writer dropped here, releasing the lock
+        }
+
+        patient_index.reload().unwrap();
+        assert_eq!(patient_index.stats().unwrap().num_docs, 1);
+
+        {
+            let mut writer = patient_index.writer(50).unwrap();
+            let term = Term::from_field_text(schema.id, &patient_id);
+            writer.delete_term(term);
+            writer.commit().unwrap();
+        }
+
+        patient_index.reload().unwrap();
+        assert_eq!(patient_index.stats().unwrap().num_docs, 0, "Document should be deleted");
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        use tantivy::collector::TopDocs;
+        use tantivy::query::TermQuery;
+        use tantivy::schema::{Term, IndexRecordOption};
+
+        let temp_dir = TempDir::new().unwrap();
+        let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
+        let schema = patient_index.schema();
+
+        // Don't add any documents, search should return nothing
+        let searcher = patient_index.reader().searcher();
+        let term = Term::from_field_text(schema.family_name, "nonexistent");
+        let query = TermQuery::new(term, IndexRecordOption::Basic);
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
+        assert_eq!(top_docs.len(), 0, "Search on empty index should return 0 results");
+    }
+
+    #[test]
+    fn test_search_by_name_and_year_filter() {
+        use tantivy::collector::TopDocs;
+        use tantivy::query::{BooleanQuery, TermQuery};
+        use tantivy::schema::{Term, IndexRecordOption};
+
+        let temp_dir = TempDir::new().unwrap();
+        let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
+        let schema = patient_index.schema();
+
+        let mut writer = patient_index.writer(50).unwrap();
+
+        // Add two patients: same name, different birth years
+        for birth_date in &["1980-01-15", "1990-06-20"] {
+            let mut doc = tantivy::TantivyDocument::default();
+            doc.add_text(schema.id, &uuid::Uuid::new_v4().to_string());
+            doc.add_text(schema.family_name, "smith");
+            doc.add_text(schema.given_names, "john");
+            doc.add_text(schema.full_name, "john smith");
+            doc.add_text(schema.birth_date, birth_date);
+            doc.add_text(schema.active, "true");
+            writer.add_document(doc).unwrap();
+        }
+        writer.commit().unwrap();
+        patient_index.reload().unwrap();
+
+        assert_eq!(patient_index.stats().unwrap().num_docs, 2);
+
+        // Search filtering by exact birth_date
+        let searcher = patient_index.reader().searcher();
+        let name_term = Term::from_field_text(schema.family_name, "smith");
+        let dob_term = Term::from_field_text(schema.birth_date, "1980-01-15");
+        let query = BooleanQuery::intersection(vec![
+            Box::new(TermQuery::new(name_term, IndexRecordOption::Basic)),
+            Box::new(TermQuery::new(dob_term, IndexRecordOption::Basic)),
+        ]);
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
+        assert_eq!(top_docs.len(), 1, "Should find exactly 1 patient with matching name+DOB");
     }
 }

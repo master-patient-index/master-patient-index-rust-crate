@@ -73,7 +73,7 @@ impl Default for Config {
                 grpc_port: 50051,
             },
             database: DatabaseConfig {
-                url: "postgres://localhost/mpi".to_string(),
+                url: "postgres://localhost/master_patient_index".to_string(),
                 max_connections: 10,
                 min_connections: 2,
             },

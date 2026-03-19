@@ -437,7 +437,7 @@ cargo install diesel_cli --no-default-features --features postgres
 createdb mpi
 
 # 3. Set DATABASE_URL in .env
-echo "DATABASE_URL=postgres://username:password@localhost:5432/mpi" > .env
+echo "DATABASE_URL=postgres://username:password@localhost:5432/master_patient_index" > .env
 
 # 4. Run migrations
 diesel setup

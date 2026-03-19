@@ -229,7 +229,7 @@ pub fn create_router(state: AppState) -> Router {
         .with_state(state);
 
     Router::new()
-        .nest("/api/v1", api_routes)
+        .nest("/api", api_routes)
         .merge(SwaggerUi::new("/swagger-ui")
             .url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(CorsLayer::permissive())
@@ -237,7 +237,7 @@ pub fn create_router(state: AppState) -> Router {
 ```
 
 **Features:**
-- Versioned API under `/api/v1`
+- Versioned API under `/api`
 - RESTful route design
 - Swagger UI at `/swagger-ui`
 - OpenAPI spec at `/api-docs/openapi.json`
@@ -334,7 +334,7 @@ pub struct ApiDoc;
 
 ## API Endpoints
 
-### Base URL: `http://localhost:8080/api/v1`
+### Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Description | Status |
 |--------|----------|-------------|--------|
@@ -359,7 +359,7 @@ pub struct ApiDoc;
 
 **Request:**
 ```
-GET /api/v1/health
+GET /api/health
 ```
 
 **Response:**
@@ -375,7 +375,7 @@ GET /api/v1/health
 
 **Request:**
 ```
-GET /api/v1/patients/search?q=Smith&limit=10&fuzzy=true
+GET /api/patients/search?q=Smith&limit=10&fuzzy=true
 ```
 
 **Response:**
@@ -395,7 +395,7 @@ GET /api/v1/patients/search?q=Smith&limit=10&fuzzy=true
 
 **Request:**
 ```
-POST /api/v1/patients/match
+POST /api/patients/match
 Content-Type: application/json
 
 {
@@ -541,7 +541,7 @@ mod tests {
     async fn test_health_check() {
         let app = create_test_router();
         let response = app
-            .oneshot(Request::builder().uri("/api/v1/health").body(Body::empty()).unwrap())
+            .oneshot(Request::builder().uri("/api/health").body(Body::empty()).unwrap())
             .await
             .unwrap();
 

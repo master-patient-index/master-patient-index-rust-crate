@@ -2,7 +2,7 @@
 
 A high-performance, enterprise-grade Master Patient Index system built with Rust for healthcare organizations.
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.93%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](Dockerfile)
 
@@ -14,7 +14,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 - ✅ **Full-Text Search**: Powered by Tantivy for fast, accurate patient searches
 - ✅ **RESTful API**: Modern HTTP API with OpenAPI/Swagger documentation
 - ✅ **Event Streaming**: Real-time patient event publishing with audit logging
-- ✅ **Database Integration**: PostgreSQL with Diesel ORM and migrations
+- ✅ **Database Integration**: PostgreSQL with SeaORM and migrations
 - ✅ **Docker Ready**: Multi-stage builds, Docker Compose for dev/test/prod
 - ✅ **Integration Tests**: Comprehensive test coverage
 - ✅ **Production Hardened**: Security, monitoring, and compliance features
@@ -38,6 +38,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 ## Features
 
 ### Patient Management
+
 - ✅ Create, read, update, and delete (CRUD) patient records
 - ✅ Soft delete support with complete audit trails
 - ✅ Patient identifier management (MRN, SSN, national IDs)
@@ -46,6 +47,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 - ✅ Automatic event publishing for all CRUD operations
 
 ### Patient Matching
+
 - ✅ **Probabilistic Matching**: Advanced fuzzy matching algorithms
 - ✅ **Deterministic Matching**: Rule-based exact matching
 - ✅ **Configurable Scoring**: Customizable match thresholds and weights
@@ -57,6 +59,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
   - Identifier matching
 
 ### Search Capabilities
+
 - ✅ Full-text search across all patient fields
 - ✅ Fuzzy search with configurable tolerance
 - ✅ Advanced query syntax (AND, OR, NOT)
@@ -65,6 +68,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 - ✅ Automatic index synchronization with database
 
 ### Event Streaming & Audit
+
 - ✅ **Event Publishing**: Automatic events for all patient changes
   - PatientCreated, PatientUpdated, PatientDeleted
   - PatientMerged, PatientLinked, PatientUnlinked
@@ -78,6 +82,7 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
   - Get user-specific audit logs
 
 ### RESTful API
+
 - ✅ OpenAPI 3.0 specification
 - ✅ Interactive Swagger UI
 - ✅ JSON request/response format
@@ -85,18 +90,19 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 - ✅ Comprehensive error handling
 - ✅ HTTP status codes following REST conventions
 - ✅ **Endpoints**:
-  - `GET /api/v1/health` - Health check
-  - `POST /api/v1/patients` - Create patient
-  - `GET /api/v1/patients/{id}` - Get patient
-  - `PUT /api/v1/patients/{id}` - Update patient
-  - `DELETE /api/v1/patients/{id}` - Delete patient (soft)
-  - `GET /api/v1/patients/search` - Search patients
-  - `POST /api/v1/patients/match` - Match patient records
-  - `GET /api/v1/patients/{id}/audit` - Get audit logs
-  - `GET /api/v1/audit/recent` - Recent audit activity
-  - `GET /api/v1/audit/user` - User audit logs
+  - `GET /api/health` - Health check
+  - `POST /api/patients` - Create patient
+  - `GET /api/patients/{id}` - Get patient
+  - `PUT /api/patients/{id}` - Update patient
+  - `DELETE /api/patients/{id}` - Delete patient (soft)
+  - `GET /api/patients/search` - Search patients
+  - `POST /api/patients/match` - Match patient records
+  - `GET /api/patients/{id}/audit` - Get audit logs
+  - `GET /api/audit/recent` - Recent audit activity
+  - `GET /api/audit/user` - User audit logs
 
 ### High Availability
+
 - ✅ Database connection pooling with configurable limits
 - ✅ Health check endpoints for orchestration
 - ✅ Graceful shutdown
@@ -105,12 +111,14 @@ The Master Patient Index (MPI) is a critical healthcare system that maintains a 
 - ✅ Non-root container execution
 
 ### Observability
+
 - ✅ Structured logging with `tracing` crate
 - ✅ Configurable log levels (RUST_LOG)
 - ✅ Request/response logging
 - ✅ Error logging with context
-- ⏳ Prometheus metrics (future enhancement)
-- ⏳ Distributed tracing with OpenTelemetry (future)
+- ✅ Distributed tracing with OpenTelemetry
+- ✅ OpenTelemetry metrics and traces
+- ⏳ Prometheus metrics endpoint (future enhancement)
 
 ## Quick Start
 
@@ -131,11 +139,12 @@ docker-compose up -d
 docker-compose logs -f mpi-server
 
 # Access the API
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8080/api/health
 ```
 
 **Services Available:**
-- **API**: http://localhost:8080/api/v1
+
+- **API**: http://localhost:8080/api
 - **Swagger UI**: http://localhost:8080/swagger-ui
 - **pgAdmin** (optional): http://localhost:5050
   ```bash
@@ -147,9 +156,10 @@ See [DEPLOY.md](DEPLOY.md) for complete deployment guide.
 ### Option 2: Local Development
 
 **Prerequisites:**
-- Rust 1.75+ ([Install Rust](https://rustup.rs/))
-- PostgreSQL 15+
-- Diesel CLI: `cargo install diesel_cli --no-default-features --features postgres`
+
+- Rust 1.93+ ([Install Rust](https://rustup.rs/))
+- PostgreSQL 18+
+- SeaORM CLI: `cargo install sea-orm-cli`
 
 ```bash
 # Clone repository
@@ -162,7 +172,7 @@ cp .env.example .env
 # Edit .env and set DATABASE_URL
 
 # Run migrations
-diesel migration run
+sea-orm-cli migrate up
 
 # Build and run
 cargo build --release
@@ -178,7 +188,7 @@ cargo run --release
 docker-compose up -d
 
 # Run migrations (first time)
-docker-compose exec mpi-server diesel migration run
+docker-compose exec mpi-server sea-orm-cli migrate up
 
 # View logs
 docker-compose logs -f
@@ -217,19 +227,25 @@ See [DEPLOY.md](DEPLOY.md) for comprehensive deployment instructions.
 
 ## Technology Stack
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Language** | Rust 2021 Edition | Systems programming, performance, safety |
-| **Async Runtime** | Tokio | Asynchronous I/O and concurrency |
-| **Web Framework** | Axum | HTTP server and routing |
-| **Database** | PostgreSQL 15+ | Data persistence |
-| **ORM** | Diesel | Type-safe database queries |
-| **Search Engine** | Tantivy | Full-text search indexing |
-| **Event Streaming** | In-Memory (extendable to Kafka/NATS) | Event publishing |
-| **API Docs** | Utoipa | OpenAPI 3.0 specification |
-| **Serialization** | Serde | JSON serialization/deserialization |
-| **Logging** | Tracing | Structured logging |
-| **Containerization** | Docker | Deployment packaging |
+| Component                        | Technology                           | Purpose                                  |
+| -------------------------------- | ------------------------------------ | ---------------------------------------- |
+| **Language**                     | Rust 1.93+ 2024 Edition              | Systems programming, performance, safety |
+| **Async Runtime**                | Tokio                                | Asynchronous I/O and concurrency         |
+| **Web Framework**                | Axum                                 | HTTP server and routing                  |
+| **Web Framework**                | Loco                                 | HTTP server and routing                  |
+| **Web Templating**               | Tera                                 | HTTP server and routing                  |
+| **Web Page Server Interaction**  | HTMX                                 | JavaScript to extend AJAX in HTML        |
+| **Web Page Client Interaction**  | Alpine.js                            | JavaScript to extend UI/UX in HTML       |
+| **Database**                     | PostgreSQL 18+                       | Data persistence                         |
+| **ORM**                          | SeaORM                               | Async database object-relational mapper  |
+| **Search Engine**                | Tantivy                              | Full-text search indexing                |
+| **Event Streaming**              | In-Memory (extendable to Kafka/NATS) | Event publishing                         |
+| **API Docs**                     | Utoipa                               | OpenAPI 3.0 specification                |
+| **Serialization**                | Serde                                | JSON serialization/deserialization       |
+| **Logging**                      | Tracing                              | Structured logging                       |
+| **Observability**                | OpenTelemetry                        | Structured observability                 |
+| **String Matching**              | strsim, fuzzy-matcher                | Jaro-Winkler, Levenshtein               |
+| **Containerization**             | Docker                               | Deployment packaging                     |
 
 ## Architecture
 
@@ -264,7 +280,7 @@ See [DEPLOY.md](DEPLOY.md) for comprehensive deployment instructions.
          │               │                       │
 ┌────────▼─────┐  ┌──────▼──────┐  ┌────────────▼──────┐
 │  PostgreSQL  │  │   Tantivy   │  │  Event Stream     │
-│  (Diesel)    │  │   Search    │  │  (In-Memory)      │
+│  (SeaORM)    │  │   Search    │  │  (In-Memory)      │
 │              │  │   Index     │  │                   │
 │  - patients  │  │             │  │  - PatientEvents  │
 │  - audit_log │  │             │  │  - Subscribers    │
@@ -274,6 +290,7 @@ See [DEPLOY.md](DEPLOY.md) for comprehensive deployment instructions.
 ### Data Flow
 
 **Patient Creation Flow:**
+
 1. HTTP POST → REST API Handler
 2. JSON Deserialization → Patient Model
 3. Repository `create()` → Database INSERT
@@ -283,6 +300,7 @@ See [DEPLOY.md](DEPLOY.md) for comprehensive deployment instructions.
 7. HTTP Response → Client
 
 **Patient Search Flow:**
+
 1. HTTP GET → REST API Handler
 2. Search Engine `search()` → Tantivy Query
 3. Patient IDs → Repository `get_by_id()` batch
@@ -345,16 +363,16 @@ cargo fix --allow-dirty
 
 ```bash
 # Create new migration
-diesel migration generate migration_name
+sea-orm-cli migrate generate migration_name
 
 # Run pending migrations
-diesel migration run
+sea-orm-cli migrate up
 
 # Revert last migration
-diesel migration revert
+sea-orm-cli migrate down
 
 # Check migration status
-diesel migration list
+sea-orm-cli migrate status
 ```
 
 ## API Documentation
@@ -366,8 +384,9 @@ Access the Swagger UI at **http://localhost:8080/swagger-ui** for interactive AP
 ### Quick Examples
 
 **Create Patient:**
+
 ```bash
-curl -X POST http://localhost:8080/api/v1/patients \
+curl -X POST http://localhost:8080/api/patients \
   -H "Content-Type: application/json" \
   -d '{
     "name": {
@@ -381,13 +400,15 @@ curl -X POST http://localhost:8080/api/v1/patients \
 ```
 
 **Search Patients:**
+
 ```bash
-curl "http://localhost:8080/api/v1/patients/search?q=Smith&limit=10"
+curl "http://localhost:8080/api/patients/search?q=Smith&limit=10"
 ```
 
 **Match Patient:**
+
 ```bash
-curl -X POST http://localhost:8080/api/v1/patients/match \
+curl -X POST http://localhost:8080/api/patients/match \
   -H "Content-Type: application/json" \
   -d '{
     "patient": {
@@ -402,8 +423,9 @@ curl -X POST http://localhost:8080/api/v1/patients/match \
 ```
 
 **Get Audit Logs:**
+
 ```bash
-curl "http://localhost:8080/api/v1/patients/{id}/audit?limit=50"
+curl "http://localhost:8080/api/patients/{id}/audit?limit=50"
 ```
 
 See [API_GUIDE.md](API_GUIDE.md) for complete API documentation.
@@ -412,20 +434,20 @@ See [API_GUIDE.md](API_GUIDE.md) for complete API documentation.
 
 Configuration via environment variables or `.env` file:
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | - | Yes |
-| `DATABASE_MAX_CONNECTIONS` | Max connection pool size | 10 | No |
-| `DATABASE_MIN_CONNECTIONS` | Min connection pool size | 2 | No |
-| `SERVER_HOST` | Server bind address | 0.0.0.0 | No |
-| `SERVER_PORT` | HTTP server port | 8080 | No |
-| `SEARCH_INDEX_PATH` | Tantivy index directory | ./search_index | No |
-| `MATCHING_THRESHOLD` | Match score threshold | 0.7 | No |
-| `MATCHING_NAME_WEIGHT` | Name matching weight | 0.4 | No |
-| `MATCHING_DOB_WEIGHT` | DOB matching weight | 0.3 | No |
-| `MATCHING_GENDER_WEIGHT` | Gender matching weight | 0.1 | No |
-| `MATCHING_ADDRESS_WEIGHT` | Address matching weight | 0.2 | No |
-| `RUST_LOG` | Logging level | info | No |
+| Variable                   | Description                  | Default        | Required |
+| -------------------------- | ---------------------------- | -------------- | -------- |
+| `DATABASE_URL`             | PostgreSQL connection string | -              | Yes      |
+| `DATABASE_MAX_CONNECTIONS` | Max connection pool size     | 10             | No       |
+| `DATABASE_MIN_CONNECTIONS` | Min connection pool size     | 2              | No       |
+| `SERVER_HOST`              | Server bind address          | 0.0.0.0        | No       |
+| `SERVER_PORT`              | HTTP server port             | 8080           | No       |
+| `SEARCH_INDEX_PATH`        | Tantivy index directory      | ./search_index | No       |
+| `MATCHING_THRESHOLD`       | Match score threshold        | 0.7            | No       |
+| `MATCHING_NAME_WEIGHT`     | Name matching weight         | 0.4            | No       |
+| `MATCHING_DOB_WEIGHT`      | DOB matching weight          | 0.3            | No       |
+| `MATCHING_GENDER_WEIGHT`   | Gender matching weight       | 0.1            | No       |
+| `MATCHING_ADDRESS_WEIGHT`  | Address matching weight      | 0.2            | No       |
+| `RUST_LOG`                 | Logging level                | info           | No       |
 
 See `.env.example` for complete configuration template.
 
@@ -463,11 +485,13 @@ docker-compose -f docker-compose.test.yml up --build
 ### Test Coverage
 
 **Current Coverage:**
+
 - Unit Tests: 24 tests covering matching, search, and core logic
 - Integration Tests: 8 tests covering full API workflows
 - Total: 32 tests
 
 **Test Breakdown:**
+
 - Matching Algorithms: 8 tests
 - Search Functionality: 5 tests
 - API Endpoints: 8 tests
@@ -482,6 +506,7 @@ See [task-10.md](task-10.md) for integration testing details.
 See [DEPLOY.md](DEPLOY.md) for comprehensive deployment guide.
 
 **Quick Commands:**
+
 ```bash
 # Development
 docker-compose up -d
@@ -496,10 +521,10 @@ docker build -t mpi-server:v1.0.0 .
 ### Manual Deployment
 
 1. Build release binary: `cargo build --release`
-2. Copy binary: `cp target/release/master_patient_index /opt/mpi/`
-3. Set up environment: `cp .env.production.example /opt/mpi/.env`
-4. Run migrations: `diesel migration run`
-5. Start service: `./master_patient_index`
+2. Copy binary: `cp target/release/master-patient-index /opt/master-patient-index/`
+3. Set up environment: `cp .env.production.example /opt/master-patient-index/.env`
+4. Run migrations: `sea-orm-cli migrate up`
+5. Start service: `./master-patient-index`
 
 ### Kubernetes (Future)
 
@@ -562,7 +587,7 @@ master-patient-index-rust-crate/
 │   │   └── grpc/          # gRPC server (stub)
 │   ├── db/
 │   │   ├── models.rs      # Database models
-│   │   ├── schema.rs      # Diesel schema
+│   │   ├── schema.rs      # SeaORM schema
 │   │   ├── repositories.rs # Data access layer
 │   │   └── audit.rs       # Audit log repository
 │   ├── matching/
@@ -597,7 +622,7 @@ master-patient-index-rust-crate/
 This project was developed in 11 comprehensive phases:
 
 1. **Phase 1-6**: Core infrastructure, models, configuration
-2. **Phase 7**: Database Integration (Diesel, PostgreSQL)
+2. **Phase 7**: Database Integration (SeaORM, PostgreSQL)
 3. **Phase 8**: Event Streaming & Audit Logging
 4. **Phase 9**: REST API Implementation
 5. **Phase 10**: Integration Testing
@@ -626,6 +651,7 @@ Contributions welcome! Please:
 ## License
 
 This project is dual-licensed under:
+
 - MIT License ([LICENSE-MIT](LICENSE-MIT))
 - Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 
@@ -640,9 +666,13 @@ You may choose either license for your use.
 ## Acknowledgments
 
 Built with excellent Rust crates:
+
 - [Tokio](https://tokio.rs/) - Async runtime
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
-- [Diesel](https://diesel.rs/) - ORM and query builder
+- [SeaORM](https://www.sea-ql.org/SeaORM/) - Async ORM and query builder
+- [Loco](https://loco.rs/) - Full-stack web framework
+- [Tera](https://keats.github.io/tera/) - Template engine
+- [OpenTelemetry](https://opentelemetry.io/) - Observability framework
 - [Tantivy](https://github.com/tantivy-search/tantivy) - Search engine
 - [Serde](https://serde.rs/) - Serialization
 - [Utoipa](https://github.com/juhaku/utoipa) - OpenAPI documentation
@@ -653,5 +683,5 @@ And many more listed in `Cargo.toml`.
 ---
 
 **Status**: Production-Ready ✅
-**Version**: 0.1.0
-**Last Updated**: 2025-12-28
+**Version**: 0.2.0
+**Last Updated**: 2026-03-18

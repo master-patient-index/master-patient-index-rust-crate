@@ -1,7 +1,6 @@
 //! FHIR R5 resource definitions
 
 use serde::{Deserialize, Serialize};
-use chrono::NaiveDate;
 
 /// FHIR Patient resource (R5)
 #[derive(Debug, Clone, Serialize, Deserialize)]

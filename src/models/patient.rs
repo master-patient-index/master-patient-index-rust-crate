@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use utoipa::ToSchema;
 
-use super::{Address, ContactPoint, Gender, Identifier};
+use super::{Address, ContactPoint, Gender, Identifier, IdentityDocument, EmergencyContact};
 
 /// Patient resource
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -33,6 +33,18 @@ pub struct Patient {
 
     /// Birth date
     pub birth_date: Option<NaiveDate>,
+
+    /// Tax ID number (CPF, SSN, TIN, etc.)
+    #[serde(default)]
+    pub tax_id: Option<String>,
+
+    /// Identity documents (passport, birth certificate, etc.)
+    #[serde(default)]
+    pub documents: Vec<IdentityDocument>,
+
+    /// Emergency contacts
+    #[serde(default)]
+    pub emergency_contacts: Vec<EmergencyContact>,
 
     /// Deceased indicator
     pub deceased: bool,
@@ -120,6 +132,9 @@ impl Patient {
             telecom: Vec::new(),
             gender,
             birth_date: None,
+            tax_id: None,
+            documents: Vec::new(),
+            emergency_contacts: Vec::new(),
             deceased: false,
             deceased_datetime: None,
             addresses: Vec::new(),
@@ -137,5 +152,97 @@ impl Patient {
     pub fn full_name(&self) -> String {
         let given = self.name.given.join(" ");
         format!("{} {}", given, self.name.family)
+    }
+
+    /// Get tax ID, falling back to TAX-type identifier if tax_id field is empty
+    pub fn effective_tax_id(&self) -> Option<&str> {
+        if let Some(ref tid) = self.tax_id {
+            return Some(tid.as_str());
+        }
+        self.identifiers.iter()
+            .find(|id| id.identifier_type == super::IdentifierType::TAX)
+            .map(|id| id.value.as_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Gender;
+
+    #[test]
+    fn test_patient_new_defaults() {
+        let name = HumanName {
+            use_type: None,
+            family: "Doe".into(),
+            given: vec!["Jane".into()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let patient = Patient::new(name, Gender::Female);
+
+        assert!(patient.active);
+        assert!(!patient.deceased);
+        assert_eq!(patient.gender, Gender::Female);
+        assert_eq!(patient.name.family, "Doe");
+        assert_eq!(patient.name.given, vec!["Jane".to_string()]);
+        assert!(patient.identifiers.is_empty());
+        assert!(patient.addresses.is_empty());
+        assert!(patient.telecom.is_empty());
+        assert!(patient.documents.is_empty());
+        assert!(patient.emergency_contacts.is_empty());
+        assert!(patient.links.is_empty());
+        assert!(patient.birth_date.is_none());
+        assert!(patient.tax_id.is_none());
+        assert!(patient.marital_status.is_none());
+        assert!(patient.managing_organization.is_none());
+    }
+
+    #[test]
+    fn test_patient_serialization_roundtrip() {
+        let name = HumanName {
+            use_type: Some(NameUse::Official),
+            family: "Smith".into(),
+            given: vec!["John".into(), "Michael".into()],
+            prefix: vec!["Dr.".into()],
+            suffix: vec!["Jr.".into()],
+        };
+        let mut patient = Patient::new(name, Gender::Male);
+        patient.birth_date = Some(chrono::NaiveDate::from_ymd_opt(1985, 3, 20).unwrap());
+        patient.tax_id = Some("123-45-6789".into());
+
+        let json = serde_json::to_string(&patient).expect("Serialization should succeed");
+        let deserialized: Patient = serde_json::from_str(&json).expect("Deserialization should succeed");
+
+        assert_eq!(deserialized.name.family, "Smith");
+        assert_eq!(deserialized.name.given.len(), 2);
+        assert_eq!(deserialized.gender, Gender::Male);
+        assert_eq!(deserialized.tax_id.as_deref(), Some("123-45-6789"));
+        assert_eq!(deserialized.birth_date, patient.birth_date);
+    }
+
+    #[test]
+    fn test_human_name_display() {
+        let name = HumanName {
+            use_type: None,
+            family: "Garcia".into(),
+            given: vec!["Maria".into(), "Elena".into()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let patient = Patient::new(name, Gender::Female);
+        let full = patient.full_name();
+        assert_eq!(full, "Maria Elena Garcia");
+    }
+
+    #[test]
+    fn test_gender_variants() {
+        // Test all gender variants serialize/deserialize correctly
+        let genders = vec![Gender::Male, Gender::Female, Gender::Other, Gender::Unknown];
+        for g in genders {
+            let json = serde_json::to_string(&g).expect("Gender serialization");
+            let deser: Gender = serde_json::from_str(&json).expect("Gender deserialization");
+            assert_eq!(deser, g);
+        }
     }
 }

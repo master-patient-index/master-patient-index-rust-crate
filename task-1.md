@@ -31,7 +31,8 @@ The purpose of this phase was to create a solid foundation that supports:
 **Created**: `master_patient_index` Rust library crate
 
 **Configuration**:
-- Rust Edition 2021
+
+- Rust Edition 2024
 - Dual-licensed: MIT OR Apache-2.0
 - Package metadata for healthcare and database categories
 - Version 0.1.0
@@ -39,31 +40,38 @@ The purpose of this phase was to create a solid foundation that supports:
 ### 2. Dependencies Configured
 
 #### Core Runtime & Web Framework
+
 - **Tokio** (1.42): Async runtime with full feature set
 - **Axum** (0.7): Web framework for REST API
 - **Hyper** (1.5): HTTP implementation
 - **Tower** (0.5): Middleware and service abstractions
 
 #### Data Persistence
+
 - **Diesel** (2.2): PostgreSQL ORM with async support
 - **diesel-async** (0.5): Async operations with bb8 connection pooling
 
 #### Search & Indexing
+
 - **Tantivy** (0.22): Full-text search engine
 
 #### API & Serialization
+
 - **Serde** (1.0): Serialization/deserialization
 - **Utoipa** (5.2): OpenAPI documentation generation
 - **utoipa-swagger-ui** (8.0): Interactive API documentation
 
 #### gRPC Support
+
 - **Tonic** (0.12): gRPC framework
 - **Prost** (0.13): Protocol Buffer implementation
 
 #### Event Streaming
+
 - **Fluvio** (0.23): Data streaming platform
 
 #### Observability
+
 - **OpenTelemetry** (0.27): Complete observability stack
   - Traces, metrics, and logs
   - OTLP exporter
@@ -72,20 +80,24 @@ The purpose of this phase was to create a solid foundation that supports:
 - **tracing-subscriber** (0.3): Log collection with JSON formatting
 
 #### Utilities
+
 - **UUID** (1.11): Unique identifier generation
 - **Chrono** (0.4): Date and time handling
 - **Validator** (0.19): Input validation
 - **dotenvy** (0.15): Environment variable management
 
 #### String Matching
+
 - **strsim** (0.11): String similarity metrics
 - **fuzzy-matcher** (0.3): Fuzzy string matching for patient name matching
 
 #### Security
+
 - **argon2** (0.5): Password hashing
 - **jsonwebtoken** (9.3): JWT authentication
 
 #### Testing & Benchmarking
+
 - **Assertables** (9.5): Enhanced assertions for unit tests
 - **Criterion** (0.5): Statistical benchmarking
 - **tokio-test** (0.4): Async testing utilities
@@ -144,6 +156,7 @@ src/
 ```
 
 Additional directories:
+
 - `migrations/`: Diesel database migrations
 - `proto/`: Protocol Buffer definitions for gRPC
 - `tests/`: Integration tests
@@ -154,6 +167,7 @@ Additional directories:
 Implemented comprehensive FHIR-aligned data models:
 
 **Patient Model**:
+
 - UUID-based identification
 - Multiple identifiers (MRN, SSN, etc.)
 - Human name with prefix/suffix support
@@ -164,12 +178,14 @@ Implemented comprehensive FHIR-aligned data models:
 - Audit timestamps (created_at, updated_at)
 
 **Organization Model**:
+
 - Clinic/hospital representation
 - Hierarchical organization support (part_of)
 - Multiple identifiers and aliases
 - Contact information and addresses
 
 **Identifier Types**:
+
 - Medical Record Number (MRN)
 - Social Security Number (SSN)
 - Driver's License (DL)
@@ -180,7 +196,8 @@ Implemented comprehensive FHIR-aligned data models:
 
 ### 5. API Framework
 
-**REST API** (Axum):
+**RESTlike API** (Axum):
+
 - Health check endpoint
 - Patient CRUD endpoints (placeholder implementations)
 - Search endpoint
@@ -191,11 +208,13 @@ Implemented comprehensive FHIR-aligned data models:
 - JSON request/response handling
 
 **gRPC API** (Tonic):
+
 - Server setup infrastructure
 - Protocol Buffer stub (to be implemented)
 - Configuration for separate gRPC port
 
 **FHIR R5 API**:
+
 - FHIR Patient resource conversion stubs
 - Bundle support infrastructure
 - Search parameter handling framework
@@ -205,6 +224,7 @@ Implemented comprehensive FHIR-aligned data models:
 Implemented flexible configuration management:
 
 **Config Modules**:
+
 - ServerConfig (host, ports)
 - DatabaseConfig (connection, pooling)
 - SearchConfig (index path, cache size)
@@ -213,6 +233,7 @@ Implemented flexible configuration management:
 - StreamingConfig (Fluvio broker, topics)
 
 **Environment Variables**:
+
 - `.env.example` template with all configuration options
 - Support for development, staging, production environments
 - Secure credential management
@@ -220,6 +241,7 @@ Implemented flexible configuration management:
 ### 7. Observability Infrastructure
 
 **OpenTelemetry Setup**:
+
 - Service name and version tagging
 - OTLP exporter configuration
 - Structured JSON logging
@@ -237,6 +259,7 @@ Implemented flexible configuration management:
 ### 8. Database Configuration
 
 **Diesel Setup**:
+
 - `diesel.toml` configuration
 - Schema file generation path: `src/db/schema.rs`
 - Migrations directory: `migrations/`
@@ -245,6 +268,7 @@ Implemented flexible configuration management:
 - Repository pattern for data access
 
 **PostgreSQL Features**:
+
 - UUID support
 - Chrono date/time types
 - Connection pool management
@@ -253,6 +277,7 @@ Implemented flexible configuration management:
 ### 9. Error Handling
 
 Comprehensive error type system:
+
 - Database errors
 - Connection pool errors
 - Search errors
@@ -272,15 +297,18 @@ Custom Result type alias for ergonomic error handling throughout the codebase.
 Infrastructure for two matching strategies:
 
 **Probabilistic Matcher**:
+
 - Configurable threshold score
 - Match score breakdown by component
 - Designed for fuzzy matching scenarios
 
 **Deterministic Matcher**:
+
 - Rule-based exact matching
 - Fast path for high-confidence matches
 
 **Match Components**:
+
 - Name matching
 - Birth date matching
 - Gender matching
@@ -290,6 +318,7 @@ Infrastructure for two matching strategies:
 ### 11. Search Engine Framework
 
 **Tantivy Integration**:
+
 - Search engine interface
 - Patient indexing support
 - Full-text search capabilities
@@ -300,6 +329,7 @@ Infrastructure for two matching strategies:
 ### 12. Event Streaming Framework
 
 **Fluvio Integration**:
+
 - Event types for all patient operations:
   - Created
   - Updated
@@ -314,12 +344,14 @@ Infrastructure for two matching strategies:
 ### 13. Development Tools
 
 **Git Configuration**:
+
 - Comprehensive `.gitignore` for Rust projects
 - IDE file exclusions
 - Environment file protection
 - Data directory exclusions
 
 **Build Profiles**:
+
 - Release profile optimization (LTO, single codegen unit)
 - Benchmark profile inheriting from release
 - Debug symbols stripping in release
@@ -327,6 +359,7 @@ Infrastructure for two matching strategies:
 ### 14. Documentation
 
 **README.md**:
+
 - Project overview and features
 - Technology stack
 - Quick start guide
@@ -341,12 +374,14 @@ Infrastructure for two matching strategies:
 ## Files Created/Modified
 
 ### Configuration Files
+
 - `Cargo.toml` - Project dependencies and metadata
 - `diesel.toml` - Diesel ORM configuration
 - `.env.example` - Environment variable template
 - `.gitignore` - Git ignore rules
 
 ### Source Files (24 files)
+
 - `src/lib.rs` - Library root
 - `src/error.rs` - Error types
 - `src/config/mod.rs` - Configuration management
@@ -381,10 +416,12 @@ Infrastructure for two matching strategies:
 - `src/api/fhir/search_parameters.rs` - FHIR search stub
 
 ### Documentation
+
 - `README.md` - Comprehensive project documentation
 - `task-1.md` - This synopsis file
 
 ### Directories Created
+
 - `src/api/rest/`, `src/api/grpc/`, `src/api/fhir/`
 - `src/config/`, `src/db/`, `src/error/`
 - `src/matching/`, `src/models/`, `src/observability/`
@@ -412,6 +449,7 @@ Infrastructure for two matching strategies:
 ## Compilation Status
 
 ✅ **Successfully compiles** with `cargo check`
+
 - 0 errors
 - 25 warnings (mostly unused variable warnings from stub implementations)
 - All dependencies resolved correctly
@@ -422,6 +460,7 @@ Infrastructure for two matching strategies:
 The foundation is now ready for Phase 2: Database Schema & Models
 
 Upcoming tasks:
+
 1. Design PostgreSQL schema for patient records
 2. Design schema for clinic/organization data
 3. Design patient identifier cross-reference tables
@@ -450,6 +489,7 @@ Upcoming tasks:
 Phase 1 successfully established a comprehensive foundation for the Master Patient Index system. The project structure is clean, modular, and follows Rust best practices. All major technology components are integrated and configured. The codebase is ready for implementing the core business logic, starting with database schema design and patient matching algorithms.
 
 The architecture supports the long-term goals of:
+
 - Handling millions of patient records
 - Supporting thousands of concurrent users
 - Providing enterprise-grade reliability

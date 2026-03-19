@@ -1,21 +1,21 @@
 [package]
-name = "master_patient_index"
-version = "0.1.0"
-edition = "2021"
+name = "master-patient-index"
+version = "0.2.0"
+edition = "2024"
 authors = ["MPI Development Team"]
 description = "Master Patient Index (MPI) - A healthcare patient identification and matching system"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/sixarm/master-patient-index-rust-crate"
 keywords = ["healthcare", "mpi", "patient-matching", "fhir", "hl7"]
-categories = ["healthcare", "database"]
+categories = ["science", "database"]
 
 [dependencies]
 # Async Runtime
-tokio = { version = "1.42", features = ["full"] }
+tokio = { version = "1.49", features = ["full"] }
 
 # Web Framework & HTTP
 axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
-hyper = { version = "1.5", features = ["full"] }
+hyper = { version = "1.8", features = ["full"] }
 tower = { version = "0.5", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-full"] }
 
@@ -24,9 +24,15 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Database (PostgreSQL ORM)
-diesel = { version = "2.2", features = ["postgres", "r2d2", "chrono", "uuid", "serde_json", "network-address", "numeric"] }
-diesel-async = { version = "0.5", features = ["postgres", "bb8"] }
+sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid", "with-json"] }
+sea-orm-migration = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
+
+# Web Framework (full-stack)
+loco-rs = "0.14"
+
+# Templating
+tera = "1.20"
 
 # Search Engine
 tantivy = "0.22"
@@ -36,9 +42,9 @@ tonic = { version = "0.12", features = ["transport", "codegen", "prost"] }
 prost = "0.13"
 
 # OpenAPI Documentation
-utoipa = { version = "5.2", features = ["axum_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "8.0", features = ["axum"] }
-openapiv3 = "2.0"
+utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "8.1", features = ["axum"] }
+openapiv3 = "2.2"
 
 # Data Streaming
 fluvio = "0.23"
@@ -53,12 +59,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-opentelemetry = "0.28"
 
 # Utilities
-uuid = { version = "1.11", features = ["v4", "serde"] }
+uuid = { version = "1.19", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2.0"
 anyhow = "1.0"
 validator = { version = "0.19", features = ["derive"] }
 dotenvy = "0.15"
+async-trait = "0.1"
 
 # Fuzzy Matching & String Processing
 strsim = "0.11"
@@ -70,10 +77,10 @@ jsonwebtoken = "9.3"
 
 [dev-dependencies]
 # Testing
-assertables = "9.5"
+assertables = "9.8"
 tokio-test = "0.4"
 mockall = "0.13"
-tempfile = "3.8"
+tempfile = "3.24"
 
 # Benchmarking
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
@@ -82,18 +89,17 @@ criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 # gRPC code generation
 tonic-build = "0.12"
 
-# Benchmarks will be added later
-# [[bench]]
-# name = "patient_matching"
-# harness = false
-#
-# [[bench]]
-# name = "search_performance"
-# harness = false
-#
-# [[bench]]
-# name = "database_queries"
-# harness = false
+[[bench]]
+name = "matching_bench"
+harness = false
+
+[[bench]]
+name = "search_bench"
+harness = false
+
+[[bench]]
+name = "validation_bench"
+harness = false
 
 [profile.release]
 opt-level = 3

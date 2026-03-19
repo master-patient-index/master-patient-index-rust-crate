@@ -66,7 +66,7 @@ docker-compose logs -f mpi-server
 docker-compose exec mpi-server bash
 
 # Inside the container, run migrations
-diesel migration run --database-url=$DATABASE_URL
+sea-orm-cli migrate up --database-url=$DATABASE_URL
 
 # Exit the container
 exit
@@ -76,7 +76,7 @@ exit
 
 ```bash
 # Check service health
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8080/api/health
 
 # Expected response:
 # {
@@ -88,7 +88,7 @@ curl http://localhost:8080/api/v1/health
 
 ### 6. Access Services
 
-- **MPI API**: http://localhost:8080/api/v1
+- **MPI API**: http://localhost:8080/api
 - **Swagger UI**: http://localhost:8080/swagger-ui
 - **pgAdmin** (optional): http://localhost:5050
 
@@ -121,7 +121,7 @@ nano .env.production
 docker build -t mpi-server:latest .
 
 # Tag for registry
-docker tag mpi-server:latest your-registry.com/mpi-server:v1.0.0
+docker tag mpi-server:latest your-registry.com/master_patient_index-server:v1.0.0
 ```
 
 ### 3. Push to Container Registry
@@ -131,7 +131,7 @@ docker tag mpi-server:latest your-registry.com/mpi-server:v1.0.0
 docker login your-registry.com
 
 # Push image
-docker push your-registry.com/mpi-server:v1.0.0
+docker push your-registry.com/master_patient_index-server:v1.0.0
 ```
 
 ### 4. Deploy to Production Server
@@ -141,7 +141,7 @@ docker push your-registry.com/mpi-server:v1.0.0
 ssh production-server
 
 # Pull latest image
-docker pull your-registry.com/mpi-server:v1.0.0
+docker pull your-registry.com/master_patient_index-server:v1.0.0
 
 # Start with production compose file
 docker-compose -f docker-compose.production.yml up -d
@@ -255,7 +255,7 @@ docker-compose --profile tools up -d
 
 ```bash
 docker-compose exec mpi-server bash
-diesel migration run
+sea-orm-cli migrate up
 exit
 ```
 
@@ -271,7 +271,7 @@ Add to `docker-compose.yml`:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
-    command: diesel migration run
+    command: sea-orm-cli migrate up
     networks:
       - mpi-network
 ```
@@ -285,12 +285,12 @@ docker-compose up mpi-migrations
 
 ```bash
 # Inside development environment
-diesel migration generate add_new_feature
+sea-orm-cli migrate generate add_new_feature
 
 # Edit up.sql and down.sql
 # Test migration
-diesel migration run
-diesel migration redo
+sea-orm-cli migrate up
+sea-orm-cli migrate refresh
 ```
 
 ## Monitoring
@@ -300,7 +300,7 @@ diesel migration redo
 The MPI server includes a health check endpoint:
 
 ```bash
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8080/api/health
 ```
 
 ### Docker Health Checks
@@ -385,7 +385,7 @@ DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 \q
 # Run migrations
-docker-compose exec mpi-server diesel migration run
+docker-compose exec mpi-server sea-orm-cli migrate up
 ```
 
 ### Search Index Issues

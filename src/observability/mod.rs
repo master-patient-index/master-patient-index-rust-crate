@@ -1,10 +1,7 @@
 //! Observability setup with OpenTelemetry
 
 use opentelemetry::{global, KeyValue};
-use opentelemetry_sdk::{
-    trace::{self, Tracer},
-    Resource,
-};
+use opentelemetry_sdk::Resource;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use crate::config::ObservabilityConfig;
@@ -16,7 +13,7 @@ pub mod traces;
 /// Initialize OpenTelemetry tracing and logging
 pub fn init_telemetry(config: &ObservabilityConfig) -> Result<()> {
     // Set up resource with service information
-    let resource = Resource::new(vec![
+    let _resource = Resource::new(vec![
         KeyValue::new("service.name", config.service_name.clone()),
         KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
     ]);

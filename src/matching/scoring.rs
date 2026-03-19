@@ -9,6 +9,7 @@ use super::{MatchResult, MatchScoreBreakdown};
 use super::algorithms::{
     name_matching, dob_matching, gender_matching,
     address_matching, identifier_matching,
+    tax_id_matching, document_matching,
 };
 
 /// Probabilistic scoring strategy
@@ -29,13 +30,6 @@ impl ProbabilisticScorer {
         patient: &Patient,
         candidate: &Patient,
     ) -> MatchResult {
-        // Weight factors for each component
-        const NAME_WEIGHT: f64 = 0.35;
-        const DOB_WEIGHT: f64 = 0.30;
-        const GENDER_WEIGHT: f64 = 0.10;
-        const ADDRESS_WEIGHT: f64 = 0.15;
-        const IDENTIFIER_WEIGHT: f64 = 0.10;
-
         // Calculate individual component scores
         let name_score = name_matching::match_names(&patient.name, &candidate.name);
 
@@ -59,12 +53,54 @@ impl ProbabilisticScorer {
             &candidate.identifiers,
         );
 
+        let tax_id_score = tax_id_matching::match_tax_ids(patient, candidate);
+
+        let document_score = document_matching::match_documents(
+            &patient.documents,
+            &candidate.documents,
+        );
+
+        // Tax ID exact match is a strong deterministic signal — short-circuit
+        if tax_id_score >= 1.0 {
+            return MatchResult {
+                patient: candidate.clone(),
+                score: 1.0,
+                breakdown: MatchScoreBreakdown {
+                    name_score, birth_date_score, gender_score,
+                    address_score, identifier_score, tax_id_score, document_score,
+                },
+            };
+        }
+
+        // Document number exact match is also a strong signal — short-circuit
+        if document_score >= 1.0 {
+            return MatchResult {
+                patient: candidate.clone(),
+                score: 0.98,
+                breakdown: MatchScoreBreakdown {
+                    name_score, birth_date_score, gender_score,
+                    address_score, identifier_score, tax_id_score, document_score,
+                },
+            };
+        }
+
+        // Weight factors for each component (probabilistic)
+        const NAME_WEIGHT: f64 = 0.30;
+        const DOB_WEIGHT: f64 = 0.25;
+        const GENDER_WEIGHT: f64 = 0.10;
+        const ADDRESS_WEIGHT: f64 = 0.10;
+        const IDENTIFIER_WEIGHT: f64 = 0.10;
+        const TAX_ID_WEIGHT: f64 = 0.10;
+        const DOCUMENT_WEIGHT: f64 = 0.05;
+
         // Calculate weighted total score
         let total_score = (name_score * NAME_WEIGHT)
             + (birth_date_score * DOB_WEIGHT)
             + (gender_score * GENDER_WEIGHT)
             + (address_score * ADDRESS_WEIGHT)
-            + (identifier_score * IDENTIFIER_WEIGHT);
+            + (identifier_score * IDENTIFIER_WEIGHT)
+            + (tax_id_score * TAX_ID_WEIGHT)
+            + (document_score * DOCUMENT_WEIGHT);
 
         let breakdown = MatchScoreBreakdown {
             name_score,
@@ -72,6 +108,8 @@ impl ProbabilisticScorer {
             gender_score,
             address_score,
             identifier_score,
+            tax_id_score,
+            document_score,
         };
 
         MatchResult {
@@ -103,13 +141,13 @@ impl ProbabilisticScorer {
 /// Deterministic scoring strategy
 pub struct DeterministicScorer {
     /// Configuration for matching
-    config: MatchingConfig,
+    _config: MatchingConfig,
 }
 
 impl DeterministicScorer {
     /// Create a new deterministic scorer
     pub fn new(config: MatchingConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
 
     /// Calculate match score using strict rules
@@ -121,6 +159,20 @@ impl DeterministicScorer {
         let mut total_score = 0.0;
         let mut points_available = 0.0;
 
+        // Rule 0: Tax ID exact match = definite match
+        let tax_id_score = tax_id_matching::match_tax_ids(patient, candidate);
+        if tax_id_score >= 1.0 {
+            return MatchResult {
+                patient: candidate.clone(),
+                score: 1.0,
+                breakdown: MatchScoreBreakdown {
+                    name_score: 0.0, birth_date_score: 0.0, gender_score: 0.0,
+                    address_score: 0.0, identifier_score: 0.0,
+                    tax_id_score, document_score: 0.0,
+                },
+            };
+        }
+
         // Rule 1: Exact identifier match = definite match
         let identifier_score = identifier_matching::match_identifiers(
             &patient.identifiers,
@@ -128,16 +180,31 @@ impl DeterministicScorer {
         );
 
         if identifier_score >= 0.98 {
-            // Exact identifier match - return definite match
             return MatchResult {
                 patient: candidate.clone(),
                 score: 1.0,
                 breakdown: MatchScoreBreakdown {
-                    name_score: 0.0,
-                    birth_date_score: 0.0,
-                    gender_score: 0.0,
-                    address_score: 0.0,
-                    identifier_score,
+                    name_score: 0.0, birth_date_score: 0.0, gender_score: 0.0,
+                    address_score: 0.0, identifier_score,
+                    tax_id_score, document_score: 0.0,
+                },
+            };
+        }
+
+        // Rule 1b: Document number exact match = definite match
+        let document_score = document_matching::match_documents(
+            &patient.documents,
+            &candidate.documents,
+        );
+
+        if document_score >= 1.0 {
+            return MatchResult {
+                patient: candidate.clone(),
+                score: 1.0,
+                breakdown: MatchScoreBreakdown {
+                    name_score: 0.0, birth_date_score: 0.0, gender_score: 0.0,
+                    address_score: 0.0, identifier_score,
+                    tax_id_score, document_score,
                 },
             };
         }
@@ -193,6 +260,8 @@ impl DeterministicScorer {
             gender_score,
             address_score,
             identifier_score,
+            tax_id_score,
+            document_score,
         };
 
         MatchResult {
@@ -268,6 +337,9 @@ mod tests {
             telecom: vec![],
             gender: Gender::Male,
             birth_date: dob,
+            tax_id: None,
+            documents: vec![],
+            emergency_contacts: vec![],
             deceased: false,
             deceased_datetime: None,
             addresses: vec![],
@@ -292,10 +364,10 @@ mod tests {
 
         let result = scorer.calculate_score(&patient1, &patient2);
 
-        // With NAME (0.35) + DOB (0.30) + GENDER (0.10) = 0.75
-        // No address or identifiers, so those contribute 0
-        assert!(result.score >= 0.70, "Exact match on name/dob/gender should score >= 0.70, got {}", result.score);
-        assert!(!scorer.is_match(result.score)); // 0.75 < threshold of 0.85
+        // With NAME (0.30) + DOB (0.25) + GENDER (0.10) = 0.65
+        // No address, identifiers, tax_id, or documents, so those contribute 0
+        assert!(result.score >= 0.60, "Exact match on name/dob/gender should score >= 0.60, got {}", result.score);
+        assert!(!scorer.is_match(result.score)); // 0.65 < threshold of 0.85
         assert_eq!(scorer.classify_match(result.score), MatchQuality::Possible);
     }
 
@@ -361,5 +433,115 @@ mod tests {
 
         assert_eq!(ProbabilisticScorer::new(create_test_config())
             .classify_match(0.30), MatchQuality::Unlikely);
+    }
+
+    #[test]
+    fn test_probabilistic_all_fields_match() {
+        let config = create_test_config();
+        let scorer = ProbabilisticScorer::new(config);
+
+        let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
+        let mut patient1 = create_test_patient("Smith", dob);
+        let mut patient2 = create_test_patient("Smith", dob);
+
+        // Add matching addresses
+        let addr = crate::models::Address {
+            use_type: None,
+            line1: Some("123 Main St".into()),
+            line2: None,
+            city: Some("Springfield".into()),
+            state: Some("IL".into()),
+            postal_code: Some("62701".into()),
+            country: None,
+        };
+        patient1.addresses = vec![addr.clone()];
+        patient2.addresses = vec![addr];
+
+        // Add matching identifiers
+        let id = crate::models::Identifier::mrn("hospital-a".into(), "MRN-001".into());
+        patient1.identifiers = vec![id.clone()];
+        patient2.identifiers = vec![id];
+
+        let result = scorer.calculate_score(&patient1, &patient2);
+        assert!(result.score > 0.80, "All fields matching should score very high, got {}", result.score);
+    }
+
+    #[test]
+    fn test_probabilistic_no_fields_match() {
+        let config = create_test_config();
+        let scorer = ProbabilisticScorer::new(config);
+
+        let mut patient1 = create_test_patient("Smith", NaiveDate::from_ymd_opt(1980, 1, 15));
+        patient1.gender = Gender::Male;
+        let mut patient2 = create_test_patient("Johnson", NaiveDate::from_ymd_opt(1995, 8, 22));
+        patient2.gender = Gender::Female;
+
+        let result = scorer.calculate_score(&patient1, &patient2);
+        assert!(result.score < 0.30, "No matching fields should score very low, got {}", result.score);
+        assert!(!scorer.is_match(result.score));
+    }
+
+    #[test]
+    fn test_probabilistic_partial_match() {
+        let config = create_test_config();
+        let scorer = ProbabilisticScorer::new(config);
+
+        // Same name but different DOB
+        let patient1 = create_test_patient("Smith", NaiveDate::from_ymd_opt(1980, 1, 15));
+        let patient2 = create_test_patient("Smith", NaiveDate::from_ymd_opt(1990, 6, 20));
+
+        let result = scorer.calculate_score(&patient1, &patient2);
+        assert!(result.score > 0.30, "Name match alone should contribute some score, got {}", result.score);
+        assert!(result.score < 0.80, "Only name match should not score too high, got {}", result.score);
+    }
+
+    #[test]
+    fn test_deterministic_tax_id_match_short_circuits() {
+        let config = create_test_config();
+        let scorer = DeterministicScorer::new(config);
+
+        let mut patient1 = create_test_patient("Smith", NaiveDate::from_ymd_opt(1980, 1, 15));
+        patient1.tax_id = Some("123-45-6789".into());
+        let mut patient2 = create_test_patient("Jones", NaiveDate::from_ymd_opt(1995, 12, 1));
+        patient2.tax_id = Some("123-45-6789".into());
+
+        let result = scorer.calculate_score(&patient1, &patient2);
+        assert_eq!(result.score, 1.0, "Tax ID match should short-circuit to 1.0");
+        assert_eq!(result.breakdown.tax_id_score, 1.0);
+    }
+
+    #[test]
+    fn test_deterministic_identifier_match() {
+        let config = create_test_config();
+        let scorer = DeterministicScorer::new(config);
+
+        let id = crate::models::Identifier::ssn("123-45-6789".into());
+        let mut patient1 = create_test_patient("Smith", NaiveDate::from_ymd_opt(1980, 1, 15));
+        patient1.identifiers = vec![id.clone()];
+        let mut patient2 = create_test_patient("Jones", NaiveDate::from_ymd_opt(1995, 12, 1));
+        patient2.identifiers = vec![id];
+
+        let result = scorer.calculate_score(&patient1, &patient2);
+        assert_eq!(result.score, 1.0, "Exact identifier match should short-circuit to 1.0");
+    }
+
+    #[test]
+    fn test_score_boundary_0_95() {
+        let scorer = ProbabilisticScorer::new(create_test_config());
+        assert_eq!(scorer.classify_match(0.95), MatchQuality::Definite);
+        assert_eq!(scorer.classify_match(0.949), MatchQuality::Probable);
+    }
+
+    #[test]
+    fn test_score_boundary_0_70() {
+        let config = MatchingConfig {
+            threshold_score: 0.70,
+            exact_match_score: 1.0,
+            fuzzy_match_score: 0.8,
+        };
+        let scorer = ProbabilisticScorer::new(config);
+        assert!(scorer.is_match(0.70), "Score at threshold should be a match");
+        assert!(!scorer.is_match(0.69), "Score below threshold should not be a match");
+        assert_eq!(scorer.classify_match(0.70), MatchQuality::Probable);
     }
 }

@@ -153,7 +153,7 @@ Added three new endpoints for querying audit logs:
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/patients/{id}/audit",
+    path = "/api/patients/{id}/audit",
     tag = "audit",
     params(
         ("id" = Uuid, Path, description = "Patient UUID"),
@@ -184,7 +184,7 @@ pub async fn get_patient_audit_logs(
 }
 ```
 
-**Usage**: `GET /api/v1/patients/{id}/audit?limit=100`
+**Usage**: `GET /api/patients/{id}/audit?limit=100`
 **Purpose**: Retrieve complete change history for a specific patient
 **Limit**: Configurable up to 500 records (default: 50)
 
@@ -193,7 +193,7 @@ pub async fn get_patient_audit_logs(
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/audit/recent",
+    path = "/api/audit/recent",
     tag = "audit",
     params(AuditLogQuery),
     responses(
@@ -220,7 +220,7 @@ pub async fn get_recent_audit_logs(
 }
 ```
 
-**Usage**: `GET /api/v1/audit/recent?limit=200`
+**Usage**: `GET /api/audit/recent?limit=200`
 **Purpose**: System-wide recent activity monitoring
 **Use Cases**: Dashboards, activity feeds, anomaly detection
 
@@ -229,7 +229,7 @@ pub async fn get_recent_audit_logs(
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/audit/user",
+    path = "/api/audit/user",
     tag = "audit",
     params(UserAuditLogQuery),
     responses(
@@ -256,7 +256,7 @@ pub async fn get_user_audit_logs(
 }
 ```
 
-**Usage**: `GET /api/v1/audit/user?user_id=johndoe&limit=50`
+**Usage**: `GET /api/audit/user?user_id=johndoe&limit=50`
 **Purpose**: Track actions by specific users
 **Use Cases**: User activity reports, training, compliance audits
 
@@ -297,7 +297,7 @@ Added comprehensive `#[utoipa::path]` annotations to all handlers:
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/health",
+    path = "/api/health",
     tag = "health",
     responses(
         (status = 200, description = "Service is healthy", body = HealthResponse)
@@ -313,7 +313,7 @@ pub async fn health_check() -> impl IntoResponse {
 ```rust
 #[utoipa::path(
     post,
-    path = "/api/v1/patients",
+    path = "/api/patients",
     tag = "patients",
     request_body = Patient,
     responses(
@@ -334,7 +334,7 @@ pub async fn create_patient(
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/patients/{id}",
+    path = "/api/patients/{id}",
     tag = "patients",
     params(
         ("id" = Uuid, Path, description = "Patient UUID")
@@ -358,7 +358,7 @@ pub async fn get_patient(
 ```rust
 #[utoipa::path(
     get,
-    path = "/api/v1/patients/search",
+    path = "/api/patients/search",
     tag = "search",
     params(SearchQuery),
     responses(
@@ -375,16 +375,16 @@ pub async fn search_patients(
 ```
 
 **Complete Coverage**: All 10 endpoints now have OpenAPI annotations:
-1. `GET /api/v1/health` - Health check
-2. `POST /api/v1/patients` - Create patient
-3. `GET /api/v1/patients/{id}` - Get patient
-4. `PUT /api/v1/patients/{id}` - Update patient
-5. `DELETE /api/v1/patients/{id}` - Delete patient
-6. `GET /api/v1/patients/search` - Search patients
-7. `POST /api/v1/patients/match` - Match patient
-8. `GET /api/v1/patients/{id}/audit` - Get patient audit logs
-9. `GET /api/v1/audit/recent` - Get recent audit logs
-10. `GET /api/v1/audit/user` - Get user audit logs
+1. `GET /api/health` - Health check
+2. `POST /api/patients` - Create patient
+3. `GET /api/patients/{id}` - Get patient
+4. `PUT /api/patients/{id}` - Update patient
+5. `DELETE /api/patients/{id}` - Delete patient
+6. `GET /api/patients/search` - Search patients
+7. `POST /api/patients/match` - Match patient
+8. `GET /api/patients/{id}/audit` - Get patient audit logs
+9. `GET /api/audit/recent` - Get recent audit logs
+10. `GET /api/audit/user` - Get user audit logs
 
 ### 5. OpenAPI Schema Registration
 
@@ -471,7 +471,7 @@ pub fn create_router(state: AppState) -> Router {
         .with_state(state);
 
     Router::new()
-        .nest("/api/v1", api_routes)
+        .nest("/api", api_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(CorsLayer::permissive())
 }
@@ -487,16 +487,16 @@ pub fn create_router(state: AppState) -> Router {
 
 | Method | Path | Description | Tag |
 |--------|------|-------------|-----|
-| GET | /api/v1/health | Health check | health |
-| POST | /api/v1/patients | Create patient | patients |
-| GET | /api/v1/patients/{id} | Get patient by ID | patients |
-| PUT | /api/v1/patients/{id} | Update patient | patients |
-| DELETE | /api/v1/patients/{id} | Delete patient (soft) | patients |
-| GET | /api/v1/patients/search | Search patients | search |
-| POST | /api/v1/patients/match | Match patient | matching |
-| GET | /api/v1/patients/{id}/audit | Get patient audit logs | audit |
-| GET | /api/v1/audit/recent | Get recent audit logs | audit |
-| GET | /api/v1/audit/user | Get user audit logs | audit |
+| GET | /api/health | Health check | health |
+| POST | /api/patients | Create patient | patients |
+| GET | /api/patients/{id} | Get patient by ID | patients |
+| PUT | /api/patients/{id} | Update patient | patients |
+| DELETE | /api/patients/{id} | Delete patient (soft) | patients |
+| GET | /api/patients/search | Search patients | search |
+| POST | /api/patients/match | Match patient | matching |
+| GET | /api/patients/{id}/audit | Get patient audit logs | audit |
+| GET | /api/audit/recent | Get recent audit logs | audit |
+| GET | /api/audit/user | Get user audit logs | audit |
 
 ### Request/Response Examples
 
@@ -504,7 +504,7 @@ pub fn create_router(state: AppState) -> Router {
 
 **Request**:
 ```http
-POST /api/v1/patients
+POST /api/patients
 Content-Type: application/json
 
 {
@@ -541,7 +541,7 @@ Content-Type: application/json
 
 **Request**:
 ```http
-GET /api/v1/patients/search?q=Smith&fuzzy=true&limit=10
+GET /api/patients/search?q=Smith&fuzzy=true&limit=10
 ```
 
 **Response (200 OK)**:
@@ -577,7 +577,7 @@ GET /api/v1/patients/search?q=Smith&fuzzy=true&limit=10
 
 **Request**:
 ```http
-POST /api/v1/patients/match
+POST /api/patients/match
 Content-Type: application/json
 
 {
@@ -622,7 +622,7 @@ Content-Type: application/json
 
 **Request**:
 ```http
-GET /api/v1/patients/550e8400-e29b-41d4-a716-446655440000/audit?limit=10
+GET /api/patients/550e8400-e29b-41d4-a716-446655440000/audit?limit=10
 ```
 
 **Response (200 OK)**:
@@ -806,23 +806,23 @@ parameters:
 
 ### Additional Endpoints
 
-1. **Merge Patients**: `POST /api/v1/patients/{source_id}/merge/{target_id}`
+1. **Merge Patients**: `POST /api/patients/{source_id}/merge/{target_id}`
    - Combine two patient records (duplicate resolution)
    - Requires: Repository merge method, merge event, audit logging
 
-2. **Link/Unlink Patients**: `POST/DELETE /api/v1/patients/{id}/links/{linked_id}`
+2. **Link/Unlink Patients**: `POST/DELETE /api/patients/{id}/links/{linked_id}`
    - Create/remove patient linkages across systems
    - Requires: Link repository methods, link events
 
-3. **Bulk Operations**: `POST /api/v1/patients/bulk`
+3. **Bulk Operations**: `POST /api/patients/bulk`
    - Create/update multiple patients in one request
    - Useful for migrations and integrations
 
-4. **Advanced Search**: `POST /api/v1/patients/search`
+4. **Advanced Search**: `POST /api/patients/search`
    - Complex queries with multiple criteria
    - Filter by demographics, identifiers, dates
 
-5. **Statistics**: `GET /api/v1/statistics`
+5. **Statistics**: `GET /api/statistics`
    - Patient count, growth rate, match quality metrics
    - Dashboard integration
 
@@ -848,11 +848,11 @@ parameters:
 
 1. **Cursor-Based Pagination**: For audit logs and search results
    ```
-   GET /api/v1/audit/recent?limit=50&cursor=xyz123
+   GET /api/audit/recent?limit=50&cursor=xyz123
    ```
 2. **Page-Based Pagination**: Alternative for simpler use cases
    ```
-   GET /api/v1/patients/search?q=Smith&page=2&page_size=20
+   GET /api/patients/search?q=Smith&page=2&page_size=20
    ```
 3. **Link Headers**: RFC 5988 compliant pagination links
 
@@ -879,7 +879,7 @@ parameters:
 
 ### API Versioning
 
-1. **URL Versioning**: Current `/api/v1`, future `/api/v2`
+1. **URL Versioning**: Current `/api`, future `/api/v2`
 2. **Header Versioning**: `Accept: application/vnd.mpi.v1+json`
 3. **Deprecation Policy**: Sunset header for deprecated endpoints
 4. **Changelog**: API changelog published in Swagger UI
@@ -963,18 +963,18 @@ parameters:
 **Using curl**:
 ```bash
 # Health check
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8080/api/health
 
 # Create patient
-curl -X POST http://localhost:8080/api/v1/patients \
+curl -X POST http://localhost:8080/api/patients \
   -H "Content-Type: application/json" \
   -d '{"name":{"family":"Smith","given":["John"]},"birth_date":"1980-01-15","gender":"male"}'
 
 # Search
-curl "http://localhost:8080/api/v1/patients/search?q=Smith&limit=10"
+curl "http://localhost:8080/api/patients/search?q=Smith&limit=10"
 
 # Get audit logs
-curl "http://localhost:8080/api/v1/audit/recent?limit=50"
+curl "http://localhost:8080/api/audit/recent?limit=50"
 ```
 
 ### Monitoring Endpoints

@@ -8,8 +8,11 @@
 //! - RESTful API via Axum
 //! - HL7 FHIR R5 support
 //! - gRPC API via Tonic
-//! - PostgreSQL persistence via Diesel
+//! - PostgreSQL persistence via SeaORM
 //! - Event streaming via Fluvio
+//! - Data quality validation
+//! - Privacy and data masking
+//! - Record merging and deduplication
 //! - Distributed tracing and observability via OpenTelemetry
 
 // Module declarations
@@ -20,18 +23,19 @@ pub mod error;
 pub mod matching;
 pub mod models;
 pub mod observability;
+pub mod privacy;
 pub mod search;
 pub mod streaming;
+pub mod validation;
 
 // Re-exports
 pub use error::{Error, Result};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_module_imports() {
-        // Verify all modules are accessible
+        // Verify key types are accessible
+        let _: fn() -> crate::Result<()> = || Ok(());
     }
 }

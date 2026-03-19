@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL test database
   postgres-test:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     container_name: mpi-postgres-test
     environment:
       POSTGRES_DB: mpi_test
@@ -19,7 +19,7 @@ services:
     networks:
       - mpi-test-network
     tmpfs:
-      - /var/lib/postgresql/data  # Use tmpfs for faster tests
+      - /var/lib/postgresql/data # Use tmpfs for faster tests
 
   # Test runner
   test-runner:
@@ -31,7 +31,7 @@ services:
       postgres-test:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/mpi_test
+      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/master_patient_index_test
       DATABASE_MAX_CONNECTIONS: 5
       DATABASE_MIN_CONNECTIONS: 1
       SEARCH_INDEX_PATH: /tmp/test_index
@@ -45,7 +45,7 @@ services:
         echo 'Waiting for database to be ready...' &&
         sleep 5 &&
         echo 'Running database migrations...' &&
-        diesel migration run &&
+        sea-orm-cli migrate up &&
         echo 'Running unit tests...' &&
         cargo test --lib &&
         echo 'Running integration tests...' &&

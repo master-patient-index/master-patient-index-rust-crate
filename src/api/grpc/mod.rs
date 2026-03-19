@@ -1,7 +1,5 @@
 //! gRPC API implementation with Tonic
 
-use tonic::{transport::Server, Request, Response, Status};
-
 use crate::config::ServerConfig;
 use crate::Result;
 

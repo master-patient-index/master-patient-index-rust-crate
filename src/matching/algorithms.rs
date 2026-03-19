@@ -7,12 +7,10 @@
 //! - Address matching
 //! - Identifier matching
 
-use strsim::{jaro_winkler, levenshtein, normalized_levenshtein};
-use fuzzy_matcher::FuzzyMatcher;
-use fuzzy_matcher::skim::SkimMatcherV2;
+use strsim::{jaro_winkler, normalized_levenshtein};
 use chrono::{NaiveDate, Datelike};
 
-use crate::models::{Patient, HumanName, Address, Identifier};
+use crate::models::{HumanName, Address, Identifier, IdentityDocument};
 
 /// Name matching algorithms
 pub mod name_matching {
@@ -39,7 +37,7 @@ pub mod name_matching {
             + (prefix_suffix_score * PREFIX_SUFFIX_WEIGHT)
     }
 
-    /// Match family names using fuzzy string matching
+    /// Match family names using fuzzy string matching and phonetic algorithms
     pub fn match_family_names(family1: &str, family2: &str) -> f64 {
         if family1.is_empty() || family2.is_empty() {
             return 0.0;
@@ -60,8 +58,13 @@ pub mod name_matching {
         // Use normalized Levenshtein distance
         let lev_score = normalized_levenshtein(&f1, &f2);
 
-        // Take the maximum score
-        f64::max(jw_score, lev_score)
+        // Phonetic matching (Soundex)
+        let phonetic_score = crate::matching::phonetic::phonetic_similarity(&f1, &f2);
+        // Phonetic match provides a floor — if names sound alike, score at least 0.85
+        let phonetic_boost = if phonetic_score >= 1.0 { 0.85 } else { 0.0 };
+
+        // Take the maximum of all methods
+        f64::max(f64::max(jw_score, lev_score), phonetic_boost)
     }
 
     /// Match given names (array of names)
@@ -454,6 +457,83 @@ pub mod identifier_matching {
     }
 }
 
+/// Tax ID matching (deterministic)
+pub mod tax_id_matching {
+    use crate::models::Patient;
+
+    /// Match patients by tax ID (exact match after normalization).
+    /// Returns 1.0 for exact match, 0.0 otherwise.
+    pub fn match_tax_ids(patient: &Patient, candidate: &Patient) -> f64 {
+        let tid1 = patient.effective_tax_id();
+        let tid2 = candidate.effective_tax_id();
+
+        match (tid1, tid2) {
+            (Some(t1), Some(t2)) => {
+                let t1 = normalize_tax_id(t1);
+                let t2 = normalize_tax_id(t2);
+                if !t1.is_empty() && t1 == t2 { 1.0 } else { 0.0 }
+            }
+            _ => 0.0,
+        }
+    }
+
+    /// Strip formatting characters from a tax ID
+    fn normalize_tax_id(tid: &str) -> String {
+        tid.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_lowercase()
+    }
+}
+
+/// Identity document matching
+pub mod document_matching {
+    use super::*;
+
+    /// Match identity documents between two patients.
+    /// Returns the highest score across all document pair comparisons.
+    pub fn match_documents(docs1: &[IdentityDocument], docs2: &[IdentityDocument]) -> f64 {
+        if docs1.is_empty() || docs2.is_empty() {
+            return 0.0;
+        }
+
+        let mut max_score = 0.0;
+
+        for d1 in docs1 {
+            for d2 in docs2 {
+                let score = match_document(d1, d2);
+                max_score = f64::max(max_score, score);
+            }
+        }
+
+        max_score
+    }
+
+    /// Match individual identity documents
+    pub fn match_document(doc1: &IdentityDocument, doc2: &IdentityDocument) -> f64 {
+        // Must be same document type
+        if doc1.document_type != doc2.document_type {
+            return 0.0;
+        }
+
+        // Compare document numbers after normalization
+        let n1 = doc1.number.trim().to_uppercase().replace(['-', ' ', '.'], "");
+        let n2 = doc2.number.trim().to_uppercase().replace(['-', ' ', '.'], "");
+
+        if n1.is_empty() || n2.is_empty() {
+            return 0.0;
+        }
+
+        if n1 == n2 {
+            // Boost score if issuing country also matches
+            if doc1.issuing_country == doc2.issuing_country {
+                1.0
+            } else {
+                0.95
+            }
+        } else {
+            0.0
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,5 +635,282 @@ mod tests {
             Some("12345"),
         );
         assert!(score > 0.90);
+    }
+
+    #[test]
+    fn test_name_match_empty_strings() {
+        let name1 = HumanName {
+            use_type: None,
+            family: "".to_string(),
+            given: vec![],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let name2 = HumanName {
+            use_type: None,
+            family: "".to_string(),
+            given: vec![],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let score = name_matching::match_names(&name1, &name2);
+        assert!(score < 0.5, "Empty names should score low, got {}", score);
+    }
+
+    #[test]
+    fn test_name_match_unicode_characters() {
+        let name1 = HumanName {
+            use_type: None,
+            family: "Muller".to_string(),
+            given: vec!["Hans".to_string()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let name2 = HumanName {
+            use_type: None,
+            family: "Mueller".to_string(),
+            given: vec!["Hans".to_string()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let score = name_matching::match_names(&name1, &name2);
+        assert!(score > 0.70, "Unicode-similar names should score reasonably, got {}", score);
+    }
+
+    #[test]
+    fn test_name_match_case_insensitivity() {
+        let name1 = HumanName {
+            use_type: None,
+            family: "SMITH".to_string(),
+            given: vec!["JOHN".to_string()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let name2 = HumanName {
+            use_type: None,
+            family: "smith".to_string(),
+            given: vec!["john".to_string()],
+            prefix: vec![],
+            suffix: vec![],
+        };
+        let score = name_matching::match_names(&name1, &name2);
+        assert!(score > 0.99, "Case-insensitive match should score ~1.0, got {}", score);
+    }
+
+    #[test]
+    fn test_dob_match_exact() {
+        let dob1 = NaiveDate::from_ymd_opt(1990, 6, 15);
+        let dob2 = NaiveDate::from_ymd_opt(1990, 6, 15);
+        let score = dob_matching::match_birth_dates(dob1, dob2);
+        assert_eq!(score, 1.0, "Exact DOB match should be 1.0");
+    }
+
+    #[test]
+    fn test_dob_match_off_by_one_year() {
+        let dob1 = NaiveDate::from_ymd_opt(1980, 3, 10);
+        let dob2 = NaiveDate::from_ymd_opt(1981, 3, 10);
+        let score = dob_matching::match_birth_dates(dob1, dob2);
+        assert!(score > 0.80, "Off-by-one year with same month/day should score high, got {}", score);
+    }
+
+    #[test]
+    fn test_dob_match_none_values() {
+        let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
+        assert_eq!(dob_matching::match_birth_dates(None, None), 0.5, "Both None should be neutral 0.5");
+        assert_eq!(dob_matching::match_birth_dates(dob, None), 0.0, "One None should be 0.0");
+        assert_eq!(dob_matching::match_birth_dates(None, dob), 0.0, "One None should be 0.0");
+    }
+
+    #[test]
+    fn test_gender_match_same() {
+        use crate::models::Gender;
+        assert_eq!(gender_matching::match_gender(Gender::Female, Gender::Female), 1.0);
+        assert_eq!(gender_matching::match_gender(Gender::Other, Gender::Other), 1.0);
+    }
+
+    #[test]
+    fn test_gender_match_different() {
+        use crate::models::Gender;
+        assert_eq!(gender_matching::match_gender(Gender::Male, Gender::Female), 0.0);
+        assert_eq!(gender_matching::match_gender(Gender::Female, Gender::Other), 0.0);
+    }
+
+    #[test]
+    fn test_gender_match_unknown() {
+        use crate::models::Gender;
+        assert_eq!(gender_matching::match_gender(Gender::Unknown, Gender::Male), 0.5);
+        assert_eq!(gender_matching::match_gender(Gender::Female, Gender::Unknown), 0.5);
+        assert_eq!(gender_matching::match_gender(Gender::Unknown, Gender::Unknown), 1.0);
+    }
+
+    #[test]
+    fn test_address_match_exact() {
+        let addr = Address {
+            use_type: None,
+            line1: Some("123 Main Street".to_string()),
+            line2: None,
+            city: Some("Springfield".to_string()),
+            state: Some("IL".to_string()),
+            postal_code: Some("62701".to_string()),
+            country: Some("US".to_string()),
+        };
+        let score = address_matching::match_addresses(&[addr.clone()], &[addr]);
+        assert!(score > 0.99, "Exact address match should score ~1.0, got {}", score);
+    }
+
+    #[test]
+    fn test_address_match_partial() {
+        let addr1 = Address {
+            use_type: None,
+            line1: Some("123 Main Street".to_string()),
+            line2: None,
+            city: Some("Springfield".to_string()),
+            state: Some("IL".to_string()),
+            postal_code: Some("62701".to_string()),
+            country: None,
+        };
+        let addr2 = Address {
+            use_type: None,
+            line1: Some("456 Oak Avenue".to_string()),
+            line2: None,
+            city: Some("Springfield".to_string()),
+            state: Some("IL".to_string()),
+            postal_code: Some("62702".to_string()),
+            country: None,
+        };
+        let score = address_matching::match_addresses(&[addr1], &[addr2]);
+        assert!(score > 0.0, "Partial address match (same city/state) should score > 0, got {}", score);
+        assert!(score < 1.0, "Partial match should be < 1.0");
+    }
+
+    #[test]
+    fn test_address_match_empty() {
+        let addr = Address {
+            use_type: None,
+            line1: None,
+            line2: None,
+            city: None,
+            state: None,
+            postal_code: None,
+            country: None,
+        };
+        let score = address_matching::match_addresses(&[], &[addr]);
+        assert_eq!(score, 0.0, "Empty address list should score 0.0");
+        let score2 = address_matching::match_addresses(&[], &[]);
+        assert_eq!(score2, 0.0, "Both empty address lists should score 0.0");
+    }
+
+    #[test]
+    fn test_identifier_match_exact() {
+        let id1 = Identifier::new(
+            crate::models::IdentifierType::MRN,
+            "urn:oid:facility:hospital-a".to_string(),
+            "MRN-12345".to_string(),
+        );
+        let id2 = Identifier::new(
+            crate::models::IdentifierType::MRN,
+            "urn:oid:facility:hospital-a".to_string(),
+            "MRN-12345".to_string(),
+        );
+        let score = identifier_matching::match_identifiers(&[id1], &[id2]);
+        assert_eq!(score, 1.0, "Exact identifier match should be 1.0");
+    }
+
+    #[test]
+    fn test_identifier_match_different_type() {
+        let id1 = Identifier::new(
+            crate::models::IdentifierType::MRN,
+            "urn:oid:facility:hospital-a".to_string(),
+            "12345".to_string(),
+        );
+        let id2 = Identifier::new(
+            crate::models::IdentifierType::SSN,
+            "urn:oid:facility:hospital-a".to_string(),
+            "12345".to_string(),
+        );
+        let score = identifier_matching::match_identifiers(&[id1], &[id2]);
+        assert_eq!(score, 0.0, "Different identifier types should not match");
+    }
+
+    #[test]
+    fn test_tax_id_match_exact() {
+        use crate::models::{Patient, HumanName, Gender};
+        let mut p1 = Patient::new(
+            HumanName { use_type: None, family: "Smith".into(), given: vec!["John".into()], prefix: vec![], suffix: vec![] },
+            Gender::Male,
+        );
+        p1.tax_id = Some("123-45-6789".to_string());
+
+        let mut p2 = Patient::new(
+            HumanName { use_type: None, family: "Smith".into(), given: vec!["John".into()], prefix: vec![], suffix: vec![] },
+            Gender::Male,
+        );
+        p2.tax_id = Some("123-45-6789".to_string());
+
+        let score = tax_id_matching::match_tax_ids(&p1, &p2);
+        assert_eq!(score, 1.0, "Exact tax ID match should be 1.0");
+    }
+
+    #[test]
+    fn test_tax_id_match_none() {
+        use crate::models::{Patient, HumanName, Gender};
+        let p1 = Patient::new(
+            HumanName { use_type: None, family: "Smith".into(), given: vec!["John".into()], prefix: vec![], suffix: vec![] },
+            Gender::Male,
+        );
+        let p2 = Patient::new(
+            HumanName { use_type: None, family: "Smith".into(), given: vec!["John".into()], prefix: vec![], suffix: vec![] },
+            Gender::Male,
+        );
+        let score = tax_id_matching::match_tax_ids(&p1, &p2);
+        assert_eq!(score, 0.0, "Both None tax IDs should score 0.0");
+    }
+
+    #[test]
+    fn test_document_match_exact() {
+        let doc1 = IdentityDocument {
+            document_type: crate::models::DocumentType::Passport,
+            number: "X12345678".to_string(),
+            issuing_country: Some("US".to_string()),
+            issuing_authority: None,
+            issue_date: None,
+            expiry_date: None,
+            verified: true,
+        };
+        let doc2 = IdentityDocument {
+            document_type: crate::models::DocumentType::Passport,
+            number: "X12345678".to_string(),
+            issuing_country: Some("US".to_string()),
+            issuing_authority: None,
+            issue_date: None,
+            expiry_date: None,
+            verified: false,
+        };
+        let score = document_matching::match_documents(&[doc1], &[doc2]);
+        assert_eq!(score, 1.0, "Exact document match with same country should be 1.0");
+    }
+
+    #[test]
+    fn test_document_match_different_type() {
+        let doc1 = IdentityDocument {
+            document_type: crate::models::DocumentType::Passport,
+            number: "X12345678".to_string(),
+            issuing_country: Some("US".to_string()),
+            issuing_authority: None,
+            issue_date: None,
+            expiry_date: None,
+            verified: true,
+        };
+        let doc2 = IdentityDocument {
+            document_type: crate::models::DocumentType::DriversLicense,
+            number: "X12345678".to_string(),
+            issuing_country: Some("US".to_string()),
+            issuing_authority: None,
+            issue_date: None,
+            expiry_date: None,
+            verified: true,
+        };
+        let score = document_matching::match_documents(&[doc1], &[doc2]);
+        assert_eq!(score, 0.0, "Different document types should not match");
     }
 }

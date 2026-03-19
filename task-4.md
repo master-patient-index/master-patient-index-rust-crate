@@ -530,9 +530,9 @@ While Phase 4 core objectives are complete, potential enhancements include:
 
 The search engine from Phase 4 will be exposed via:
 ```
-GET  /api/v1/patients/search?q=Smith&limit=10
-GET  /api/v1/patients/search/fuzzy?q=Smyth&limit=10
-POST /api/v1/patients/match
+GET  /api/patients/search?q=Smith&limit=10
+GET  /api/patients/search/fuzzy?q=Smyth&limit=10
+POST /api/patients/match
 ```
 
 ## Conclusion

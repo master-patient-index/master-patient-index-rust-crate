@@ -22,7 +22,7 @@ use crate::Result;
     info(
         title = "Master Patient Index API",
         version = "0.1.0",
-        description = "RESTful API for patient identification and matching",
+        description = "RESTful API for patient identification, matching, deduplication, and privacy",
         contact(
             name = "MPI Development Team",
             email = "support@example.com"
@@ -36,6 +36,11 @@ use crate::Result;
         handlers::delete_patient,
         handlers::search_patients,
         handlers::match_patient,
+        handlers::check_duplicates,
+        handlers::merge_patients,
+        handlers::batch_deduplicate,
+        handlers::export_patient_data,
+        handlers::get_patient_masked,
         handlers::get_patient_audit_logs,
         handlers::get_recent_audit_logs,
         handlers::get_user_audit_logs,
@@ -49,6 +54,20 @@ use crate::Result;
             crate::models::Identifier,
             crate::models::identifier::IdentifierType,
             crate::models::identifier::IdentifierUse,
+            crate::models::IdentityDocument,
+            crate::models::DocumentType,
+            crate::models::EmergencyContact,
+            crate::models::MergeRequest,
+            crate::models::MergeResponse,
+            crate::models::MergeRecord,
+            crate::models::MergeStatus,
+            crate::models::BatchDeduplicationRequest,
+            crate::models::BatchDeduplicationResponse,
+            crate::models::ReviewQueueItem,
+            crate::models::ReviewStatus,
+            crate::models::Consent,
+            crate::models::ConsentType,
+            crate::models::ConsentStatus,
             crate::api::ApiResponse::<crate::models::Patient>,
             crate::api::ApiError,
             handlers::HealthResponse,
@@ -58,6 +77,7 @@ use crate::Result;
             handlers::MatchRequest,
             handlers::MatchResponse,
             handlers::MatchResultsResponse,
+            handlers::DuplicateCheckResponse,
             handlers::AuditLogQuery,
             handlers::UserAuditLogQuery,
         )
@@ -67,6 +87,8 @@ use crate::Result;
         (name = "patients", description = "Patient management endpoints"),
         (name = "search", description = "Patient search endpoints"),
         (name = "matching", description = "Patient matching endpoints"),
+        (name = "deduplication", description = "Duplicate detection, review, and merge endpoints"),
+        (name = "privacy", description = "Data masking, export, and consent endpoints"),
         (name = "audit", description = "Audit log query endpoints"),
     )
 )]
@@ -75,13 +97,25 @@ pub struct ApiDoc;
 /// Create the REST API router with application state
 pub fn create_router(state: AppState) -> Router {
     let api_routes = Router::new()
+        // Health
         .route("/health", get(handlers::health_check))
+        // Patient CRUD
         .route("/patients", post(handlers::create_patient))
         .route("/patients/:id", get(handlers::get_patient))
         .route("/patients/:id", put(handlers::update_patient))
         .route("/patients/:id", delete(handlers::delete_patient))
+        // Search
         .route("/patients/search", get(handlers::search_patients))
+        // Matching
         .route("/patients/match", post(handlers::match_patient))
+        // Duplicate detection & deduplication
+        .route("/patients/check-duplicates", post(handlers::check_duplicates))
+        .route("/patients/merge", post(handlers::merge_patients))
+        .route("/patients/deduplicate", post(handlers::batch_deduplicate))
+        // Privacy
+        .route("/patients/:id/export", get(handlers::export_patient_data))
+        .route("/patients/:id/masked", get(handlers::get_patient_masked))
+        // Audit
         .route("/patients/:id/audit", get(handlers::get_patient_audit_logs))
         .route("/audit/recent", get(handlers::get_recent_audit_logs))
         .route("/audit/user", get(handlers::get_user_audit_logs))

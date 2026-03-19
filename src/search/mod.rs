@@ -2,10 +2,9 @@
 
 use tantivy::{
     collector::TopDocs,
-    query::{Query, QueryParser, FuzzyTermQuery, BooleanQuery, TermQuery, Occur},
-    schema::{Term, Value},
     doc,
-    DocAddress,
+    query::{Query, QueryParser, FuzzyTermQuery, BooleanQuery, Occur},
+    schema::{Term, Value},
 };
 use std::path::Path;
 
@@ -309,6 +308,9 @@ mod tests {
             telecom: vec![],
             gender: Gender::Male,
             birth_date,
+            tax_id: None,
+            documents: vec![],
+            emergency_contacts: vec![],
             deceased: false,
             deceased_datetime: None,
             addresses: vec![],
