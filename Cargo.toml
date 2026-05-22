@@ -2,10 +2,10 @@
 name = "master-patient-index"
 version = "0.2.0"
 edition = "2024"
-authors = ["MPI Development Team"]
+authors = ["joel@joelparkerhenderson.com"]
 description = "Master Patient Index (MPI) - A healthcare patient identification and matching system"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/sixarm/master-patient-index-rust-crate"
+license = "MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only"
+repository = "https://github.com/master-patient-index/master-patient-index-rust-crate"
 keywords = ["healthcare", "mpi", "patient-matching", "fhir", "hl7"]
 categories = ["science", "database"]
 
