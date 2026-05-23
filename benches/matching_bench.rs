@@ -1,18 +1,17 @@
 //! Benchmarks for patient matching algorithms
 
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
 use chrono::{NaiveDate, Utc};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use uuid::Uuid;
 
-use master_patient_index::models::*;
-use master_patient_index::matching::*;
+use master_patient_index::config::MatchingConfig;
 use master_patient_index::matching::algorithms::{
-    name_matching, dob_matching, gender_matching,
-    address_matching,
-    tax_id_matching, document_matching,
+    address_matching, dob_matching, document_matching, gender_matching, name_matching,
+    tax_id_matching,
 };
 use master_patient_index::matching::phonetic;
-use master_patient_index::config::MatchingConfig;
+use master_patient_index::matching::*;
+use master_patient_index::models::*;
 
 fn create_test_patient(family: &str, given: &str, birth_date: Option<NaiveDate>) -> Patient {
     let now = Utc::now();
@@ -93,30 +92,22 @@ fn bench_name_matching(c: &mut Criterion) {
     };
 
     c.bench_function("name_match_fuzzy", |b| {
-        b.iter(|| {
-            name_matching::match_names(black_box(&name1), black_box(&name2))
-        })
+        b.iter(|| name_matching::match_names(black_box(&name1), black_box(&name2)))
     });
 
     let name_exact = name1.clone();
     c.bench_function("name_match_exact", |b| {
-        b.iter(|| {
-            name_matching::match_names(black_box(&name1), black_box(&name_exact))
-        })
+        b.iter(|| name_matching::match_names(black_box(&name1), black_box(&name_exact)))
     });
 
     c.bench_function("family_name_match", |b| {
-        b.iter(|| {
-            name_matching::match_family_names(black_box("Smith"), black_box("Smyth"))
-        })
+        b.iter(|| name_matching::match_family_names(black_box("Smith"), black_box("Smyth")))
     });
 
     c.bench_function("given_name_match_variants", |b| {
         let given1 = vec!["William".to_string()];
         let given2 = vec!["Bill".to_string()];
-        b.iter(|| {
-            name_matching::match_given_names(black_box(&given1), black_box(&given2))
-        })
+        b.iter(|| name_matching::match_given_names(black_box(&given1), black_box(&given2)))
     });
 }
 
@@ -125,35 +116,25 @@ fn bench_dob_matching(c: &mut Criterion) {
     let dob2 = NaiveDate::from_ymd_opt(1980, 1, 16);
 
     c.bench_function("dob_match_exact", |b| {
-        b.iter(|| {
-            dob_matching::match_birth_dates(black_box(dob1), black_box(dob1))
-        })
+        b.iter(|| dob_matching::match_birth_dates(black_box(dob1), black_box(dob1)))
     });
 
     c.bench_function("dob_match_typo", |b| {
-        b.iter(|| {
-            dob_matching::match_birth_dates(black_box(dob1), black_box(dob2))
-        })
+        b.iter(|| dob_matching::match_birth_dates(black_box(dob1), black_box(dob2)))
     });
 
     c.bench_function("dob_match_missing", |b| {
-        b.iter(|| {
-            dob_matching::match_birth_dates(black_box(dob1), black_box(None))
-        })
+        b.iter(|| dob_matching::match_birth_dates(black_box(dob1), black_box(None)))
     });
 }
 
 fn bench_gender_matching(c: &mut Criterion) {
     c.bench_function("gender_match_same", |b| {
-        b.iter(|| {
-            gender_matching::match_gender(black_box(Gender::Male), black_box(Gender::Male))
-        })
+        b.iter(|| gender_matching::match_gender(black_box(Gender::Male), black_box(Gender::Male)))
     });
 
     c.bench_function("gender_match_different", |b| {
-        b.iter(|| {
-            gender_matching::match_gender(black_box(Gender::Male), black_box(Gender::Female))
-        })
+        b.iter(|| gender_matching::match_gender(black_box(Gender::Male), black_box(Gender::Female)))
     });
 }
 
@@ -180,35 +161,25 @@ fn bench_address_matching(c: &mut Criterion) {
     c.bench_function("address_match_similar", |b| {
         let addrs1 = vec![addr1.clone()];
         let addrs2 = vec![addr2.clone()];
-        b.iter(|| {
-            address_matching::match_addresses(black_box(&addrs1), black_box(&addrs2))
-        })
+        b.iter(|| address_matching::match_addresses(black_box(&addrs1), black_box(&addrs2)))
     });
 }
 
 fn bench_phonetic_matching(c: &mut Criterion) {
     c.bench_function("soundex_encode_short", |b| {
-        b.iter(|| {
-            phonetic::soundex(black_box("Smith"))
-        })
+        b.iter(|| phonetic::soundex(black_box("Smith")))
     });
 
     c.bench_function("soundex_encode_long", |b| {
-        b.iter(|| {
-            phonetic::soundex(black_box("Christopher"))
-        })
+        b.iter(|| phonetic::soundex(black_box("Christopher")))
     });
 
     c.bench_function("soundex_match", |b| {
-        b.iter(|| {
-            phonetic::soundex_match(black_box("Smith"), black_box("Smyth"))
-        })
+        b.iter(|| phonetic::soundex_match(black_box("Smith"), black_box("Smyth")))
     });
 
     c.bench_function("phonetic_similarity", |b| {
-        b.iter(|| {
-            phonetic::phonetic_similarity(black_box("Robert"), black_box("Rupert"))
-        })
+        b.iter(|| phonetic::phonetic_similarity(black_box("Robert"), black_box("Rupert")))
     });
 }
 
@@ -217,15 +188,15 @@ fn bench_full_patient_matching(c: &mut Criterion) {
     let matcher = ProbabilisticMatcher::new(config);
 
     let dob = NaiveDate::from_ymd_opt(1980, 1, 15);
-    let patient = create_test_patient_with_address(
-        "Smith", "John", dob,
-        "Springfield", "IL", "62701",
-    );
+    let patient =
+        create_test_patient_with_address("Smith", "John", dob, "Springfield", "IL", "62701");
 
     c.bench_function("match_patients_pair", |b| {
         let candidate = create_test_patient("Smyth", "Jon", dob);
         b.iter(|| {
-            matcher.match_patients(black_box(&patient), black_box(&candidate)).unwrap()
+            matcher
+                .match_patients(black_box(&patient), black_box(&candidate))
+                .unwrap()
         })
     });
 
@@ -235,7 +206,9 @@ fn bench_full_patient_matching(c: &mut Criterion) {
 
     c.bench_function("find_matches_10_candidates", |b| {
         b.iter(|| {
-            matcher.find_matches(black_box(&patient), black_box(&candidates_10)).unwrap()
+            matcher
+                .find_matches(black_box(&patient), black_box(&candidates_10))
+                .unwrap()
         })
     });
 
@@ -245,7 +218,9 @@ fn bench_full_patient_matching(c: &mut Criterion) {
 
     c.bench_function("find_matches_100_candidates", |b| {
         b.iter(|| {
-            matcher.find_matches(black_box(&patient), black_box(&candidates_100)).unwrap()
+            matcher
+                .find_matches(black_box(&patient), black_box(&candidates_100))
+                .unwrap()
         })
     });
 
@@ -255,7 +230,9 @@ fn bench_full_patient_matching(c: &mut Criterion) {
 
     c.bench_function("find_matches_1000_candidates", |b| {
         b.iter(|| {
-            matcher.find_matches(black_box(&patient), black_box(&candidates_1000)).unwrap()
+            matcher
+                .find_matches(black_box(&patient), black_box(&candidates_1000))
+                .unwrap()
         })
     });
 }
@@ -270,7 +247,9 @@ fn bench_deterministic_matching(c: &mut Criterion) {
 
     c.bench_function("deterministic_match_pair", |b| {
         b.iter(|| {
-            matcher.match_patients(black_box(&patient), black_box(&candidate)).unwrap()
+            matcher
+                .match_patients(black_box(&patient), black_box(&candidate))
+                .unwrap()
         })
     });
 }
@@ -283,16 +262,12 @@ fn bench_tax_id_matching(c: &mut Criterion) {
     p2.tax_id = Some("123-45-6789".to_string());
 
     c.bench_function("tax_id_match_same", |b| {
-        b.iter(|| {
-            tax_id_matching::match_tax_ids(black_box(&p1), black_box(&p2))
-        })
+        b.iter(|| tax_id_matching::match_tax_ids(black_box(&p1), black_box(&p2)))
     });
 
     let p3 = create_test_patient("Jones", "Bob", None);
     c.bench_function("tax_id_match_missing", |b| {
-        b.iter(|| {
-            tax_id_matching::match_tax_ids(black_box(&p1), black_box(&p3))
-        })
+        b.iter(|| tax_id_matching::match_tax_ids(black_box(&p1), black_box(&p3)))
     });
 }
 
@@ -319,9 +294,7 @@ fn bench_document_matching(c: &mut Criterion) {
     c.bench_function("document_match_same", |b| {
         let docs1 = vec![doc1.clone()];
         let docs2 = vec![doc2.clone()];
-        b.iter(|| {
-            document_matching::match_documents(black_box(&docs1), black_box(&docs2))
-        })
+        b.iter(|| document_matching::match_documents(black_box(&docs1), black_box(&docs2)))
     });
 }
 

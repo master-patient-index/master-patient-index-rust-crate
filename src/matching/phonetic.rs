@@ -39,10 +39,10 @@ pub fn soundex(name: &str) -> String {
         }
 
         let digit = to_digit(c);
-        if let Some(d) = digit {
-            if Some(d) != last_digit {
-                code.push(d);
-            }
+        if let Some(d) = digit
+            && Some(d) != last_digit
+        {
+            code.push(d);
         }
         last_digit = digit;
     }
@@ -78,7 +78,11 @@ pub fn phonetic_similarity(name1: &str, name2: &str) -> f64 {
     }
 
     // Partial match: count matching leading characters
-    let matching = s1.chars().zip(s2.chars()).take_while(|(a, b)| a == b).count();
+    let matching = s1
+        .chars()
+        .zip(s2.chars())
+        .take_while(|(a, b)| a == b)
+        .count();
     matching as f64 / 4.0
 }
 
@@ -149,6 +153,10 @@ mod tests {
         // Classic Soundex test case: Ashcraft -> A261
         let code = soundex("Ashcraft");
         assert_eq!(code.len(), 4);
-        assert!(code.starts_with('A'), "Ashcraft should start with A, got {}", code);
+        assert!(
+            code.starts_with('A'),
+            "Ashcraft should start with A, got {}",
+            code
+        );
     }
 }

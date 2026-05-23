@@ -1,0 +1,21 @@
+{% for p in patients %}
+  <tr>
+    <td><a href="/patients/{{ p.id }}"><code>{{ p.id_short }}</code></a></td>
+    <td>{{ p.family_name }}</td>
+    <td>{{ p.given_names }}</td>
+    <td>{{ p.birth_date | default(value="—") }}</td>
+    <td>{{ p.gender }}</td>
+    <td>
+      {% if p.active %}
+        <span class="badge success">active</span>
+      {% else %}
+        <span class="badge">inactive</span>
+      {% endif %}
+    </td>
+    <td class="text-right">
+      <a class="button secondary" href="/patients/{{ p.id }}">View</a>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="7" class="empty-state">No patients found.</td></tr>
+{% endfor %}

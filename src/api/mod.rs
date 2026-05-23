@@ -1,8 +1,8 @@
 //! API modules for REST, gRPC, and FHIR
 
-pub mod rest;
-pub mod grpc;
 pub mod fhir;
+pub mod grpc;
+pub mod rest;
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

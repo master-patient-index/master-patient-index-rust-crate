@@ -1,7 +1,7 @@
 //! gRPC API implementation with Tonic
 
-use crate::config::ServerConfig;
 use crate::Result;
+use crate::config::ServerConfig;
 
 pub mod proto {
     // Protocol buffer generated code will go here

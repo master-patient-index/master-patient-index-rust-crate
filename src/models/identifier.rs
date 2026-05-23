@@ -73,11 +73,7 @@ impl std::fmt::Display for IdentifierType {
 
 impl Identifier {
     /// Create a new identifier
-    pub fn new(
-        identifier_type: IdentifierType,
-        system: String,
-        value: String,
-    ) -> Self {
+    pub fn new(identifier_type: IdentifierType, system: String, value: String) -> Self {
         Self {
             use_type: None,
             identifier_type,

@@ -2,23 +2,25 @@
 
 use serde::{Deserialize, Serialize};
 
-pub mod patient;
-pub mod organization;
-pub mod identifier;
+pub mod consent;
 pub mod document;
 pub mod emergency_contact;
+pub mod identifier;
 pub mod merge;
+pub mod organization;
+pub mod patient;
 pub mod review_queue;
-pub mod consent;
 
-pub use patient::{Patient, HumanName, NameUse, PatientLink, LinkType};
-pub use organization::Organization;
-pub use identifier::{Identifier, IdentifierType, IdentifierUse};
-pub use document::{IdentityDocument, DocumentType};
+pub use consent::{Consent, ConsentStatus, ConsentType};
+pub use document::{DocumentType, IdentityDocument};
 pub use emergency_contact::EmergencyContact;
+pub use identifier::{Identifier, IdentifierType, IdentifierUse};
 pub use merge::{MergeRecord, MergeRequest, MergeResponse, MergeStatus};
-pub use review_queue::{ReviewQueueItem, ReviewStatus, BatchDeduplicationRequest, BatchDeduplicationResponse};
-pub use consent::{Consent, ConsentType, ConsentStatus};
+pub use organization::Organization;
+pub use patient::{HumanName, LinkType, NameUse, Patient, PatientLink};
+pub use review_queue::{
+    BatchDeduplicationRequest, BatchDeduplicationResponse, ReviewQueueItem, ReviewStatus,
+};
 
 /// Gender enumeration per FHIR specification
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]

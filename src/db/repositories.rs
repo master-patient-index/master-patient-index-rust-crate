@@ -1,13 +1,13 @@
 //! Repository pattern implementations for database operations
 
-use sea_orm::*;
-use sea_orm::sea_query::Expr;
 use chrono::Utc;
+use sea_orm::sea_query::Expr;
+use sea_orm::*;
 use uuid::Uuid;
 
-use crate::models::{Patient, HumanName, Address, ContactPoint, Identifier, PatientLink};
-use crate::Result;
 use super::models::*;
+use crate::Result;
+use crate::models::{Address, ContactPoint, HumanName, Identifier, Patient, PatientLink};
 
 /// Audit context for tracking user actions
 #[derive(Debug, Clone)]
@@ -86,10 +86,10 @@ impl SeaOrmPatientRepository {
 
     /// Publish an event if publisher is configured
     fn publish_event(&self, event: crate::streaming::PatientEvent) {
-        if let Some(ref publisher) = self.event_publisher {
-            if let Err(e) = publisher.publish(event) {
-                tracing::error!("Failed to publish event: {}", e);
-            }
+        if let Some(ref publisher) = self.event_publisher
+            && let Err(e) = publisher.publish(event)
+        {
+            tracing::error!("Failed to publish event: {}", e);
         }
     }
 
@@ -104,31 +104,43 @@ impl SeaOrmPatientRepository {
     ) {
         if let Some(ref audit_log) = self.audit_log {
             let result = match action {
-                "CREATE" => audit_log.log_create(
-                    "Patient",
-                    entity_id,
-                    new_values.unwrap_or(serde_json::Value::Null),
-                    context.user_id.clone(),
-                    context.ip_address.clone(),
-                    context.user_agent.clone(),
-                ).await,
-                "UPDATE" => audit_log.log_update(
-                    "Patient",
-                    entity_id,
-                    old_values.unwrap_or(serde_json::Value::Null),
-                    new_values.unwrap_or(serde_json::Value::Null),
-                    context.user_id.clone(),
-                    context.ip_address.clone(),
-                    context.user_agent.clone(),
-                ).await,
-                "DELETE" => audit_log.log_delete(
-                    "Patient",
-                    entity_id,
-                    old_values.unwrap_or(serde_json::Value::Null),
-                    context.user_id.clone(),
-                    context.ip_address.clone(),
-                    context.user_agent.clone(),
-                ).await,
+                "CREATE" => {
+                    audit_log
+                        .log_create(
+                            "Patient",
+                            entity_id,
+                            new_values.unwrap_or(serde_json::Value::Null),
+                            context.user_id.clone(),
+                            context.ip_address.clone(),
+                            context.user_agent.clone(),
+                        )
+                        .await
+                }
+                "UPDATE" => {
+                    audit_log
+                        .log_update(
+                            "Patient",
+                            entity_id,
+                            old_values.unwrap_or(serde_json::Value::Null),
+                            new_values.unwrap_or(serde_json::Value::Null),
+                            context.user_id.clone(),
+                            context.ip_address.clone(),
+                            context.user_agent.clone(),
+                        )
+                        .await
+                }
+                "DELETE" => {
+                    audit_log
+                        .log_delete(
+                            "Patient",
+                            entity_id,
+                            old_values.unwrap_or(serde_json::Value::Null),
+                            context.user_id.clone(),
+                            context.ip_address.clone(),
+                            context.user_agent.clone(),
+                        )
+                        .await
+                }
                 _ => Ok(()),
             };
 
@@ -139,7 +151,11 @@ impl SeaOrmPatientRepository {
     }
 
     /// Convert domain Patient model to SeaORM active models
-    fn to_active_models(&self, patient: &Patient) -> (
+    #[allow(clippy::type_complexity)]
+    fn to_active_models(
+        &self,
+        patient: &Patient,
+    ) -> (
         patients::ActiveModel,
         Vec<patient_names::ActiveModel>,
         Vec<patient_identifiers::ActiveModel>,
@@ -196,60 +212,79 @@ impl SeaOrmPatientRepository {
         }
 
         // Identifiers
-        let identifiers = patient.identifiers.iter().map(|id| patient_identifiers::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            patient_id: Set(patient.id),
-            use_type: Set(id.use_type.as_ref().map(|u| format!("{:?}", u))),
-            identifier_type: Set(format!("{:?}", id.identifier_type)),
-            system: Set(id.system.clone()),
-            value: Set(id.value.clone()),
-            assigner: Set(id.assigner.clone()),
-            created_at: Set(Utc::now()),
-            updated_at: Set(Utc::now()),
-        }).collect();
+        let identifiers = patient
+            .identifiers
+            .iter()
+            .map(|id| patient_identifiers::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                patient_id: Set(patient.id),
+                use_type: Set(id.use_type.as_ref().map(|u| format!("{:?}", u))),
+                identifier_type: Set(format!("{:?}", id.identifier_type)),
+                system: Set(id.system.clone()),
+                value: Set(id.value.clone()),
+                assigner: Set(id.assigner.clone()),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            })
+            .collect();
 
         // Addresses
-        let addresses = patient.addresses.iter().enumerate().map(|(idx, addr)| patient_addresses::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            patient_id: Set(patient.id),
-            use_type: Set(None),
-            line1: Set(addr.line1.clone()),
-            line2: Set(addr.line2.clone()),
-            city: Set(addr.city.clone()),
-            state: Set(addr.state.clone()),
-            postal_code: Set(addr.postal_code.clone()),
-            country: Set(addr.country.clone()),
-            is_primary: Set(idx == 0),
-            created_at: Set(Utc::now()),
-            updated_at: Set(Utc::now()),
-        }).collect();
+        let addresses = patient
+            .addresses
+            .iter()
+            .enumerate()
+            .map(|(idx, addr)| patient_addresses::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                patient_id: Set(patient.id),
+                use_type: Set(None),
+                line1: Set(addr.line1.clone()),
+                line2: Set(addr.line2.clone()),
+                city: Set(addr.city.clone()),
+                state: Set(addr.state.clone()),
+                postal_code: Set(addr.postal_code.clone()),
+                country: Set(addr.country.clone()),
+                is_primary: Set(idx == 0),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            })
+            .collect();
 
         // Contacts
-        let contacts = patient.telecom.iter().enumerate().map(|(idx, cp)| patient_contacts::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            patient_id: Set(patient.id),
-            system: Set(format!("{:?}", cp.system)),
-            value: Set(cp.value.clone()),
-            use_type: Set(cp.use_type.as_ref().map(|u| format!("{:?}", u))),
-            is_primary: Set(idx == 0),
-            created_at: Set(Utc::now()),
-            updated_at: Set(Utc::now()),
-        }).collect();
+        let contacts = patient
+            .telecom
+            .iter()
+            .enumerate()
+            .map(|(idx, cp)| patient_contacts::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                patient_id: Set(patient.id),
+                system: Set(format!("{:?}", cp.system)),
+                value: Set(cp.value.clone()),
+                use_type: Set(cp.use_type.as_ref().map(|u| format!("{:?}", u))),
+                is_primary: Set(idx == 0),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            })
+            .collect();
 
         // Links
-        let links = patient.links.iter().map(|link| patient_links::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            patient_id: Set(patient.id),
-            other_patient_id: Set(link.other_patient_id),
-            link_type: Set(format!("{:?}", link.link_type)),
-            created_at: Set(Utc::now()),
-            created_by: Set(None),
-        }).collect();
+        let links = patient
+            .links
+            .iter()
+            .map(|link| patient_links::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                patient_id: Set(patient.id),
+                other_patient_id: Set(link.other_patient_id),
+                link_type: Set(format!("{:?}", link.link_type)),
+                created_at: Set(Utc::now()),
+                created_by: Set(None),
+            })
+            .collect();
 
         (new_patient, names, identifiers, addresses, contacts, links)
     }
 
     /// Convert database models to domain Patient model
+    #[allow(clippy::wrong_self_convention)]
     fn from_db_models(
         &self,
         db_patient: patients::Model,
@@ -259,7 +294,10 @@ impl SeaOrmPatientRepository {
         db_contacts: Vec<patient_contacts::Model>,
         db_links: Vec<patient_links::Model>,
     ) -> Result<Patient> {
-        use crate::models::{Gender, NameUse, ContactPointSystem, ContactPointUse, LinkType, IdentifierType, IdentifierUse};
+        use crate::models::{
+            ContactPointSystem, ContactPointUse, Gender, IdentifierType, IdentifierUse, LinkType,
+            NameUse,
+        };
 
         // Parse gender
         let gender = match db_patient.gender.as_str() {
@@ -270,21 +308,25 @@ impl SeaOrmPatientRepository {
         };
 
         // Get primary name
-        let primary_name = db_names.iter()
+        let primary_name = db_names
+            .iter()
             .find(|n| n.is_primary)
             .ok_or_else(|| crate::Error::Validation("Patient has no primary name".to_string()))?;
 
         let name = HumanName {
-            use_type: primary_name.use_type.as_ref().and_then(|u| match u.as_str() {
-                "Usual" => Some(NameUse::Usual),
-                "Official" => Some(NameUse::Official),
-                "Temp" => Some(NameUse::Temp),
-                "Nickname" => Some(NameUse::Nickname),
-                "Anonymous" => Some(NameUse::Anonymous),
-                "Old" => Some(NameUse::Old),
-                "Maiden" => Some(NameUse::Maiden),
-                _ => None,
-            }),
+            use_type: primary_name
+                .use_type
+                .as_ref()
+                .and_then(|u| match u.as_str() {
+                    "Usual" => Some(NameUse::Usual),
+                    "Official" => Some(NameUse::Official),
+                    "Temp" => Some(NameUse::Temp),
+                    "Nickname" => Some(NameUse::Nickname),
+                    "Anonymous" => Some(NameUse::Anonymous),
+                    "Old" => Some(NameUse::Old),
+                    "Maiden" => Some(NameUse::Maiden),
+                    _ => None,
+                }),
             family: primary_name.family.clone(),
             given: primary_name.given.clone(),
             prefix: primary_name.prefix.clone(),
@@ -292,7 +334,8 @@ impl SeaOrmPatientRepository {
         };
 
         // Additional names
-        let additional_names = db_names.iter()
+        let additional_names = db_names
+            .iter()
             .filter(|n| !n.is_primary)
             .map(|n| HumanName {
                 use_type: n.use_type.as_ref().and_then(|u| match u.as_str() {
@@ -313,7 +356,8 @@ impl SeaOrmPatientRepository {
             .collect();
 
         // Identifiers
-        let identifiers = db_identifiers.iter()
+        let identifiers = db_identifiers
+            .iter()
             .map(|id| {
                 let identifier_type = match id.identifier_type.as_str() {
                     "MRN" => IdentifierType::MRN,
@@ -345,7 +389,8 @@ impl SeaOrmPatientRepository {
             .collect();
 
         // Addresses
-        let addresses = db_addresses.iter()
+        let addresses = db_addresses
+            .iter()
             .map(|addr| Address {
                 use_type: None,
                 line1: addr.line1.clone(),
@@ -358,7 +403,8 @@ impl SeaOrmPatientRepository {
             .collect();
 
         // Telecom
-        let telecom = db_contacts.iter()
+        let telecom = db_contacts
+            .iter()
             .filter_map(|cp| {
                 let system = match cp.system.as_str() {
                     "Phone" => ContactPointSystem::Phone,
@@ -389,7 +435,8 @@ impl SeaOrmPatientRepository {
             .collect();
 
         // Links
-        let links = db_links.iter()
+        let links = db_links
+            .iter()
             .filter_map(|link| {
                 let link_type = match link.link_type.as_str() {
                     "ReplacedBy" => LinkType::ReplacedBy,
@@ -420,10 +467,10 @@ impl SeaOrmPatientRepository {
             addresses,
             marital_status: db_patient.marital_status,
             multiple_birth: db_patient.multiple_birth,
-            tax_id: None, // TODO: Load from DB
-            documents: vec![], // TODO: Load from DB
+            tax_id: None,               // TODO: Load from DB
+            documents: vec![],          // TODO: Load from DB
             emergency_contacts: vec![], // TODO: Load from DB
-            photo: vec![], // Not stored in DB yet
+            photo: vec![],              // Not stored in DB yet
             managing_organization: db_patient.managing_organization_id,
             links,
             created_at: db_patient.created_at,
@@ -432,7 +479,10 @@ impl SeaOrmPatientRepository {
     }
 
     /// Load all associated data for a patient
-    async fn load_associations(&self, patient_id: &Uuid) -> Result<(
+    async fn load_associations(
+        &self,
+        patient_id: &Uuid,
+    ) -> Result<(
         Vec<patient_names::Model>,
         Vec<patient_identifiers::Model>,
         Vec<patient_addresses::Model>,
@@ -464,7 +514,13 @@ impl SeaOrmPatientRepository {
             .all(&self.db)
             .await?;
 
-        Ok((db_names, db_identifiers, db_addresses, db_contacts, db_links))
+        Ok((
+            db_names,
+            db_identifiers,
+            db_addresses,
+            db_contacts,
+            db_links,
+        ))
     }
 }
 
@@ -510,7 +566,14 @@ impl PatientRepository for SeaOrmPatientRepository {
         let (db_names, db_identifiers, db_addresses, db_contacts, db_links) =
             self.load_associations(&db_patient.id).await?;
 
-        let result = self.from_db_models(db_patient, db_names, db_identifiers, db_addresses, db_contacts, db_links)?;
+        let result = self.from_db_models(
+            db_patient,
+            db_names,
+            db_identifiers,
+            db_addresses,
+            db_contacts,
+            db_links,
+        )?;
 
         // Publish event
         self.publish_event(crate::streaming::PatientEvent::Created {
@@ -520,7 +583,14 @@ impl PatientRepository for SeaOrmPatientRepository {
 
         // Log audit
         if let Ok(patient_json) = serde_json::to_value(&result) {
-            self.log_audit("CREATE", result.id, None, Some(patient_json), &AuditContext::default()).await;
+            self.log_audit(
+                "CREATE",
+                result.id,
+                None,
+                Some(patient_json),
+                &AuditContext::default(),
+            )
+            .await;
         }
 
         Ok(result)
@@ -540,8 +610,15 @@ impl PatientRepository for SeaOrmPatientRepository {
         let (db_names, db_identifiers, db_addresses, db_contacts, db_links) =
             self.load_associations(id).await?;
 
-        self.from_db_models(db_patient, db_names, db_identifiers, db_addresses, db_contacts, db_links)
-            .map(Some)
+        self.from_db_models(
+            db_patient,
+            db_names,
+            db_identifiers,
+            db_addresses,
+            db_contacts,
+            db_links,
+        )
+        .map(Some)
     }
 
     async fn update(&self, patient: &Patient) -> Result<Patient> {
@@ -570,23 +647,28 @@ impl PatientRepository for SeaOrmPatientRepository {
         // Delete existing associated data
         patient_names::Entity::delete_many()
             .filter(patient_names::Column::PatientId.eq(patient.id))
-            .exec(&txn).await?;
+            .exec(&txn)
+            .await?;
 
         patient_identifiers::Entity::delete_many()
             .filter(patient_identifiers::Column::PatientId.eq(patient.id))
-            .exec(&txn).await?;
+            .exec(&txn)
+            .await?;
 
         patient_addresses::Entity::delete_many()
             .filter(patient_addresses::Column::PatientId.eq(patient.id))
-            .exec(&txn).await?;
+            .exec(&txn)
+            .await?;
 
         patient_contacts::Entity::delete_many()
             .filter(patient_contacts::Column::PatientId.eq(patient.id))
-            .exec(&txn).await?;
+            .exec(&txn)
+            .await?;
 
         patient_links::Entity::delete_many()
             .filter(patient_links::Column::PatientId.eq(patient.id))
-            .exec(&txn).await?;
+            .exec(&txn)
+            .await?;
 
         // Re-insert associated data
         let (_, new_names, new_identifiers, new_addresses, new_contacts, new_links) =
@@ -611,8 +693,9 @@ impl PatientRepository for SeaOrmPatientRepository {
         txn.commit().await?;
 
         // Fetch and return updated patient
-        let result = self.get_by_id(&patient.id).await?
-            .ok_or_else(|| crate::Error::Validation("Patient not found after update".to_string()))?;
+        let result = self.get_by_id(&patient.id).await?.ok_or_else(|| {
+            crate::Error::Validation("Patient not found after update".to_string())
+        })?;
 
         // Publish event
         self.publish_event(crate::streaming::PatientEvent::Updated {
@@ -621,10 +704,19 @@ impl PatientRepository for SeaOrmPatientRepository {
         });
 
         // Log audit
-        if let Some(old_json) = old_patient.as_ref().and_then(|p| serde_json::to_value(p).ok()) {
-            if let Ok(new_json) = serde_json::to_value(&result) {
-                self.log_audit("UPDATE", result.id, Some(old_json), Some(new_json), &AuditContext::default()).await;
-            }
+        if let Some(old_json) = old_patient
+            .as_ref()
+            .and_then(|p| serde_json::to_value(p).ok())
+            && let Ok(new_json) = serde_json::to_value(&result)
+        {
+            self.log_audit(
+                "UPDATE",
+                result.id,
+                Some(old_json),
+                Some(new_json),
+                &AuditContext::default(),
+            )
+            .await;
         }
 
         Ok(result)
@@ -650,10 +742,17 @@ impl PatientRepository for SeaOrmPatientRepository {
         });
 
         // Log audit
-        if let Some(old_patient) = old_patient {
-            if let Ok(old_json) = serde_json::to_value(&old_patient) {
-                self.log_audit("DELETE", *id, Some(old_json), None, &AuditContext::default()).await;
-            }
+        if let Some(old_patient) = old_patient
+            && let Ok(old_json) = serde_json::to_value(&old_patient)
+        {
+            self.log_audit(
+                "DELETE",
+                *id,
+                Some(old_json),
+                None,
+                &AuditContext::default(),
+            )
+            .await;
         }
 
         Ok(())
@@ -663,7 +762,10 @@ impl PatientRepository for SeaOrmPatientRepository {
         let search_pattern = format!("%{}%", query.to_lowercase());
 
         let patient_ids: Vec<Uuid> = patient_names::Entity::find()
-            .filter(Expr::cust_with_values("LOWER(family) LIKE $1", [search_pattern]))
+            .filter(Expr::cust_with_values(
+                "LOWER(family) LIKE $1",
+                [search_pattern],
+            ))
             .select_only()
             .column(patient_names::Column::PatientId)
             .distinct()

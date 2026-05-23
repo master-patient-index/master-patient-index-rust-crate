@@ -1,11 +1,11 @@
 //! Benchmarks for patient validation and normalization
 
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
 use chrono::{NaiveDate, Utc};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use uuid::Uuid;
 
 use master_patient_index::models::*;
-use master_patient_index::validation::{validate_patient, normalize_phone, standardize_address};
+use master_patient_index::validation::{normalize_phone, standardize_address, validate_patient};
 
 fn create_test_patient(family: &str, given: &str, birth_date: Option<NaiveDate>) -> Patient {
     let now = Utc::now();
@@ -41,25 +41,15 @@ fn create_test_patient(family: &str, given: &str, birth_date: Option<NaiveDate>)
 }
 
 fn bench_validate_simple_patient(c: &mut Criterion) {
-    let patient = create_test_patient(
-        "Smith",
-        "John",
-        NaiveDate::from_ymd_opt(1980, 1, 15),
-    );
+    let patient = create_test_patient("Smith", "John", NaiveDate::from_ymd_opt(1980, 1, 15));
 
     c.bench_function("validate_simple_patient", |b| {
-        b.iter(|| {
-            validate_patient(black_box(&patient))
-        })
+        b.iter(|| validate_patient(black_box(&patient)))
     });
 }
 
 fn bench_validate_complex_patient(c: &mut Criterion) {
-    let mut patient = create_test_patient(
-        "Smith",
-        "John",
-        NaiveDate::from_ymd_opt(1980, 1, 15),
-    );
+    let mut patient = create_test_patient("Smith", "John", NaiveDate::from_ymd_opt(1980, 1, 15));
 
     patient.tax_id = Some("123-45-6789".to_string());
 
@@ -107,9 +97,7 @@ fn bench_validate_complex_patient(c: &mut Criterion) {
     });
 
     c.bench_function("validate_complex_patient", |b| {
-        b.iter(|| {
-            validate_patient(black_box(&patient))
-        })
+        b.iter(|| validate_patient(black_box(&patient)))
     });
 }
 
@@ -129,29 +117,21 @@ fn bench_validate_invalid_patient(c: &mut Criterion) {
     });
 
     c.bench_function("validate_invalid_patient", |b| {
-        b.iter(|| {
-            validate_patient(black_box(&patient))
-        })
+        b.iter(|| validate_patient(black_box(&patient)))
     });
 }
 
 fn bench_normalize_phone(c: &mut Criterion) {
     c.bench_function("normalize_phone_us_format", |b| {
-        b.iter(|| {
-            normalize_phone(black_box("(555) 123-4567"), black_box("1"))
-        })
+        b.iter(|| normalize_phone(black_box("(555) 123-4567"), black_box("1")))
     });
 
     c.bench_function("normalize_phone_international", |b| {
-        b.iter(|| {
-            normalize_phone(black_box("+1-555-123-4567"), black_box("1"))
-        })
+        b.iter(|| normalize_phone(black_box("+1-555-123-4567"), black_box("1")))
     });
 
     c.bench_function("normalize_phone_raw_digits", |b| {
-        b.iter(|| {
-            normalize_phone(black_box("5551234567"), black_box("1"))
-        })
+        b.iter(|| normalize_phone(black_box("5551234567"), black_box("1")))
     });
 }
 
@@ -167,9 +147,7 @@ fn bench_standardize_address(c: &mut Criterion) {
     };
 
     c.bench_function("standardize_address_full", |b| {
-        b.iter(|| {
-            standardize_address(black_box(&addr))
-        })
+        b.iter(|| standardize_address(black_box(&addr)))
     });
 
     let addr_minimal = Address {
@@ -183,9 +161,7 @@ fn bench_standardize_address(c: &mut Criterion) {
     };
 
     c.bench_function("standardize_address_minimal", |b| {
-        b.iter(|| {
-            standardize_address(black_box(&addr_minimal))
-        })
+        b.iter(|| standardize_address(black_box(&addr_minimal)))
     });
 }
 

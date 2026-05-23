@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Master Patient Index{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  {% include "partials/_nav.html" %}
+  <main class="container">
+    {% block breadcrumb %}{% endblock %}
+    {% if flash %}{% include "partials/_alert.html" %}{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

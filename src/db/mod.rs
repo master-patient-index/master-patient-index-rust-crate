@@ -2,16 +2,16 @@
 
 use sea_orm::{Database, DatabaseConnection};
 
-use crate::config::DatabaseConfig;
 use crate::Result;
+use crate::config::DatabaseConfig;
 
-pub mod schema;
+pub mod audit;
 pub mod models;
 pub mod repositories;
-pub mod audit;
+pub mod schema;
 
-pub use repositories::{PatientRepository, SeaOrmPatientRepository, AuditContext};
 pub use audit::AuditLogRepository;
+pub use repositories::{AuditContext, PatientRepository, SeaOrmPatientRepository};
 
 /// Create a database connection
 pub async fn create_connection(config: &DatabaseConfig) -> Result<DatabaseConnection> {

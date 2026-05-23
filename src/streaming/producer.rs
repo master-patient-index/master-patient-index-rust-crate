@@ -1,8 +1,8 @@
 //! Event producer implementations
 
-use std::sync::{Arc, Mutex};
 use super::{EventProducer, PatientEvent};
 use crate::Result;
+use std::sync::{Arc, Mutex};
 
 /// In-memory event publisher for development/testing
 /// In production, replace with Kafka, NATS, or Fluvio

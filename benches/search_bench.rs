@@ -1,7 +1,7 @@
 //! Benchmarks for patient search engine
 
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
 use chrono::{NaiveDate, Utc};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -43,19 +43,59 @@ fn create_test_patient(family: &str, given: &str, birth_date: Option<NaiveDate>)
 
 /// Family name pools for generating realistic test data
 const FAMILY_NAMES: &[&str] = &[
-    "Smith", "Johnson", "Williams", "Brown", "Jones",
-    "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
-    "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
-    "Thomas", "Taylor", "Moore", "Jackson", "Martin",
-    "Lee", "Perez", "Thompson", "White", "Harris",
-    "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
+    "Lee",
+    "Perez",
+    "Thompson",
+    "White",
+    "Harris",
+    "Sanchez",
+    "Clark",
+    "Ramirez",
+    "Lewis",
+    "Robinson",
 ];
 
 const GIVEN_NAMES: &[&str] = &[
-    "James", "Robert", "John", "Michael", "David",
-    "William", "Richard", "Joseph", "Thomas", "Charles",
-    "Mary", "Patricia", "Jennifer", "Linda", "Barbara",
-    "Elizabeth", "Susan", "Jessica", "Sarah", "Karen",
+    "James",
+    "Robert",
+    "John",
+    "Michael",
+    "David",
+    "William",
+    "Richard",
+    "Joseph",
+    "Thomas",
+    "Charles",
+    "Mary",
+    "Patricia",
+    "Jennifer",
+    "Linda",
+    "Barbara",
+    "Elizabeth",
+    "Susan",
+    "Jessica",
+    "Sarah",
+    "Karen",
 ];
 
 fn bench_index_single_patient(c: &mut Criterion) {
@@ -64,9 +104,7 @@ fn bench_index_single_patient(c: &mut Criterion) {
     let patient = create_test_patient("Smith", "John", NaiveDate::from_ymd_opt(1980, 1, 15));
 
     c.bench_function("index_single_patient", |b| {
-        b.iter(|| {
-            engine.index_patient(black_box(&patient)).unwrap()
-        })
+        b.iter(|| engine.index_patient(black_box(&patient)).unwrap())
     });
 }
 
@@ -86,9 +124,7 @@ fn bench_index_bulk_patients(c: &mut Criterion) {
                 let engine = SearchEngine::new(temp_dir.path()).unwrap();
                 (temp_dir, engine)
             },
-            |(_temp_dir, engine)| {
-                engine.index_patients(black_box(&patients_50)).unwrap()
-            },
+            |(_temp_dir, engine)| engine.index_patients(black_box(&patients_50)).unwrap(),
         )
     });
 }
@@ -102,7 +138,11 @@ fn bench_search_queries(c: &mut Criterion) {
         .map(|i| {
             let family = FAMILY_NAMES[i % FAMILY_NAMES.len()];
             let given = GIVEN_NAMES[i % GIVEN_NAMES.len()];
-            let dob = NaiveDate::from_ymd_opt(1950 + (i as i32 % 50), 1 + (i as u32 % 12), 1 + (i as u32 % 28));
+            let dob = NaiveDate::from_ymd_opt(
+                1950 + (i as i32 % 50),
+                1 + (i as u32 % 12),
+                1 + (i as u32 % 28),
+            );
             create_test_patient(family, given, dob)
         })
         .collect();
@@ -111,33 +151,27 @@ fn bench_search_queries(c: &mut Criterion) {
     engine.reload().unwrap();
 
     c.bench_function("search_1000_patients_exact", |b| {
-        b.iter(|| {
-            engine.search(black_box("Smith"), 10).unwrap()
-        })
+        b.iter(|| engine.search(black_box("Smith"), 10).unwrap())
     });
 
     c.bench_function("search_1000_patients_limit_50", |b| {
-        b.iter(|| {
-            engine.search(black_box("Smith"), 50).unwrap()
-        })
+        b.iter(|| engine.search(black_box("Smith"), 50).unwrap())
     });
 
     c.bench_function("fuzzy_search_1000_patients", |b| {
-        b.iter(|| {
-            engine.fuzzy_search(black_box("Smyth"), 10).unwrap()
-        })
+        b.iter(|| engine.fuzzy_search(black_box("Smyth"), 10).unwrap())
     });
 
     c.bench_function("search_by_name_and_year_1000", |b| {
         b.iter(|| {
-            engine.search_by_name_and_year(black_box("Smith"), black_box(Some(1980)), 10).unwrap()
+            engine
+                .search_by_name_and_year(black_box("Smith"), black_box(Some(1980)), 10)
+                .unwrap()
         })
     });
 
     c.bench_function("search_no_results", |b| {
-        b.iter(|| {
-            engine.search(black_box("Zzzzxyzzy"), 10).unwrap()
-        })
+        b.iter(|| engine.search(black_box("Zzzzxyzzy"), 10).unwrap())
     });
 }
 
@@ -153,9 +187,7 @@ fn bench_delete_patient(c: &mut Criterion) {
                 let id = patient.id.to_string();
                 (temp_dir, engine, id)
             },
-            |(_temp_dir, engine, id)| {
-                engine.delete_patient(black_box(&id)).unwrap()
-            },
+            |(_temp_dir, engine, id)| engine.delete_patient(black_box(&id)).unwrap(),
         )
     });
 }

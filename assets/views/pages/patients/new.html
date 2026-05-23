@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}Register patient · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/patients">Patients</a></li>
+    <li>Register</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Register new patient</h1>
+  <form method="post" action="/patients">
+    <div class="field-row">
+      <div class="field">
+        <label for="family">Family name <span class="muted">(required)</span></label>
+        <input class="text-input" type="text" id="family" name="family" value="{{ form.family | default(value='') }}" required>
+      </div>
+      <div class="field">
+        <label for="given">Given name(s) <span class="muted">(required)</span></label>
+        <input class="text-input" type="text" id="given" name="given" value="{{ form.given | default(value='') }}" required>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="birth_date">Birth date</label>
+        <input class="date-input" type="date" id="birth_date" name="birth_date" value="{{ form.birth_date | default(value='') }}">
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select class="select" id="gender" name="gender">
+          <option value="unknown">Unknown</option>
+          <option value="female"{% if form.gender | default(value="") == "female" %} selected{% endif %}>Female</option>
+          <option value="male"{% if form.gender | default(value="") == "male" %} selected{% endif %}>Male</option>
+          <option value="other"{% if form.gender | default(value="") == "other" %} selected{% endif %}>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="tax_id">Tax ID</label>
+        <input class="text-input" type="text" id="tax_id" name="tax_id" value="{{ form.tax_id | default(value='') }}" placeholder="SSN / CPF / TIN">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input class="email-input" type="email" id="email" name="email" value="{{ form.email | default(value='') }}">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="button" type="submit">Register</button>
+      <a class="button secondary" href="/patients">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

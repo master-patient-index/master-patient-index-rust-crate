@@ -2,10 +2,10 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
-use super::{Address, ContactPoint, Gender, Identifier, IdentityDocument, EmergencyContact};
+use super::{Address, ContactPoint, EmergencyContact, Gender, Identifier, IdentityDocument};
 
 /// Patient resource
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -159,7 +159,8 @@ impl Patient {
         if let Some(ref tid) = self.tax_id {
             return Some(tid.as_str());
         }
-        self.identifiers.iter()
+        self.identifiers
+            .iter()
             .find(|id| id.identifier_type == super::IdentifierType::TAX)
             .map(|id| id.value.as_str())
     }
@@ -212,7 +213,8 @@ mod tests {
         patient.tax_id = Some("123-45-6789".into());
 
         let json = serde_json::to_string(&patient).expect("Serialization should succeed");
-        let deserialized: Patient = serde_json::from_str(&json).expect("Deserialization should succeed");
+        let deserialized: Patient =
+            serde_json::from_str(&json).expect("Deserialization should succeed");
 
         assert_eq!(deserialized.name.family, "Smith");
         assert_eq!(deserialized.name.given.len(), 2);

@@ -6,17 +6,14 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use tower::ServiceExt; // for `oneshot` and `ready`
 use serde_json::json;
+use tower::ServiceExt; // for `oneshot` and `ready`
 
-use master_patient_index::{
-    models::Patient,
-    api::ApiResponse,
-};
+use master_patient_index::{api::ApiResponse, models::Patient};
 
 #[tokio::test]
 async fn test_health_check() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let response = app
         .oneshot(
@@ -41,7 +38,7 @@ async fn test_health_check() {
 
 #[tokio::test]
 async fn test_create_patient() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let family_name = common::unique_patient_name("Create");
 
@@ -85,7 +82,7 @@ async fn test_create_patient() {
 
 #[tokio::test]
 async fn test_create_and_get_patient() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let family_name = common::unique_patient_name("CreateGet");
 
@@ -128,7 +125,7 @@ async fn test_create_and_get_patient() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/{}", patient_id))
+                .uri(format!("/api/v1/patients/{}", patient_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -151,7 +148,7 @@ async fn test_create_and_get_patient() {
 
 #[tokio::test]
 async fn test_update_patient() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let family_name = common::unique_patient_name("Update");
 
@@ -194,7 +191,7 @@ async fn test_update_patient() {
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(format!("/api/v1/patients/{}", patient.id))
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_vec(&patient).unwrap()))
                 .unwrap(),
@@ -216,7 +213,7 @@ async fn test_update_patient() {
 
 #[tokio::test]
 async fn test_delete_patient() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let family_name = common::unique_patient_name("Delete");
 
@@ -258,7 +255,7 @@ async fn test_delete_patient() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(format!("/api/v1/patients/{}", patient.id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -271,7 +268,7 @@ async fn test_delete_patient() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/{}", patient.id))
+                .uri(format!("/api/v1/patients/{}", patient.id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -284,7 +281,7 @@ async fn test_delete_patient() {
 
 #[tokio::test]
 async fn test_search_patients() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let family_name = common::unique_patient_name("Search");
 
@@ -322,7 +319,10 @@ async fn test_search_patients() {
     let search_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/api/v1/patients/search?q={}&limit=10", family_name))
+                .uri(format!(
+                    "/api/v1/patients/search?q={}&limit=10",
+                    family_name
+                ))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -343,7 +343,7 @@ async fn test_search_patients() {
 
 #[tokio::test]
 async fn test_get_patient_not_found() {
-    let app = common::create_test_router();
+    let app = common::create_test_router().await;
 
     let response = app
         .oneshot(

@@ -1,11 +1,11 @@
 //! Audit log repository for tracking changes
 
 use sea_orm::*;
-use uuid::Uuid;
 use serde_json::Value as JsonValue;
+use uuid::Uuid;
 
-use crate::Result;
 use super::models::audit_log;
+use crate::Result;
 
 /// Audit log repository for recording changes
 pub struct AuditLogRepository {
@@ -37,10 +37,12 @@ impl AuditLogRepository {
             user_id,
             ip_address,
             user_agent,
-        ).await
+        )
+        .await
     }
 
     /// Log an update action
+    #[allow(clippy::too_many_arguments)]
     pub async fn log_update(
         &self,
         entity_type: &str,
@@ -60,7 +62,8 @@ impl AuditLogRepository {
             user_id,
             ip_address,
             user_agent,
-        ).await
+        )
+        .await
     }
 
     /// Log a delete action
@@ -82,10 +85,12 @@ impl AuditLogRepository {
             user_id,
             ip_address,
             user_agent,
-        ).await
+        )
+        .await
     }
 
     /// Log a generic action
+    #[allow(clippy::too_many_arguments)]
     async fn log_action(
         &self,
         action: &str,

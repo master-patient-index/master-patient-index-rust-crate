@@ -1,14 +1,14 @@
 //! HL7 FHIR R5 API implementation
 
-use crate::models::{Patient, Address, ContactPoint, Identifier};
 use crate::Result;
+use crate::models::{Address, ContactPoint, Identifier, Patient};
 
-pub mod resources;
 pub mod bundle;
-pub mod search_parameters;
 pub mod handlers;
+pub mod resources;
+pub mod search_parameters;
 
-pub use resources::{FhirPatient, FhirOperationOutcome};
+pub use resources::{FhirOperationOutcome, FhirPatient};
 
 /// Convert internal Patient model to FHIR Patient resource
 pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
@@ -33,7 +33,10 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
                 .identifiers
                 .iter()
                 .map(|id| FhirIdentifier {
-                    use_: id.use_type.as_ref().map(|u| format!("{:?}", u).to_lowercase()),
+                    use_: id
+                        .use_type
+                        .as_ref()
+                        .map(|u| format!("{:?}", u).to_lowercase()),
                     type_: Some(FhirCodeableConcept {
                         coding: Some(vec![FhirCoding {
                             system: Some(id.system.clone()),
@@ -55,7 +58,11 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
 
     // Name
     let mut names = vec![FhirHumanName {
-        use_: patient.name.use_type.as_ref().map(|u| format!("{:?}", u).to_lowercase()),
+        use_: patient
+            .name
+            .use_type
+            .as_ref()
+            .map(|u| format!("{:?}", u).to_lowercase()),
         text: Some(patient.full_name()),
         family: Some(patient.name.family.clone()),
         given: if patient.name.given.is_empty() {
@@ -78,7 +85,10 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
     // Additional names
     for add_name in &patient.additional_names {
         names.push(FhirHumanName {
-            use_: add_name.use_type.as_ref().map(|u| format!("{:?}", u).to_lowercase()),
+            use_: add_name
+                .use_type
+                .as_ref()
+                .map(|u| format!("{:?}", u).to_lowercase()),
             text: Some(format!("{} {}", add_name.given.join(" "), add_name.family)),
             family: Some(add_name.family.clone()),
             given: if add_name.given.is_empty() {
@@ -109,7 +119,10 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
                 .map(|cp| FhirContactPoint {
                     system: Some(format!("{:?}", cp.system).to_lowercase()),
                     value: Some(cp.value.clone()),
-                    use_: cp.use_type.as_ref().map(|u| format!("{:?}", u).to_lowercase()),
+                    use_: cp
+                        .use_type
+                        .as_ref()
+                        .map(|u| format!("{:?}", u).to_lowercase()),
                 })
                 .collect(),
         );
@@ -146,9 +159,9 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
                     }
 
                     FhirAddress {
-                        use_: None, // Not stored in our model
+                        use_: None,  // Not stored in our model
                         type_: None, // Not stored in our model
-                        text: None, // Not stored in our model
+                        text: None,  // Not stored in our model
                         line: if lines.is_empty() { None } else { Some(lines) },
                         city: addr.city.clone(),
                         state: addr.state.clone(),
@@ -207,14 +220,15 @@ pub fn to_fhir_patient(patient: &Patient) -> FhirPatient {
 
 /// Convert FHIR Patient resource to internal Patient model
 pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
-    use crate::models::{HumanName, NameUse, Gender, ContactPointSystem, ContactPointUse};
     use crate::api::fhir::resources::FhirDeceased;
-    use uuid::Uuid;
+    use crate::models::{ContactPointSystem, ContactPointUse, Gender, HumanName, NameUse};
     use chrono::Utc;
+    use uuid::Uuid;
 
     // Parse ID
     let id = if let Some(ref id_str) = fhir_patient.id {
-        Uuid::parse_str(id_str).map_err(|e| crate::Error::Validation(format!("Invalid UUID: {}", e)))?
+        Uuid::parse_str(id_str)
+            .map_err(|e| crate::Error::Validation(format!("Invalid UUID: {}", e)))?
     } else {
         Uuid::new_v4()
     };
@@ -239,10 +253,14 @@ pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
                 suffix: first_name.suffix.clone().unwrap_or_default(),
             }
         } else {
-            return Err(crate::Error::Validation("Patient must have at least one name".to_string()));
+            return Err(crate::Error::Validation(
+                "Patient must have at least one name".to_string(),
+            ));
         }
     } else {
-        return Err(crate::Error::Validation("Patient must have at least one name".to_string()));
+        return Err(crate::Error::Validation(
+            "Patient must have at least one name".to_string(),
+        ));
     };
 
     // Parse gender
@@ -259,15 +277,17 @@ pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
     };
 
     // Parse birth date
-    let birth_date = fhir_patient.birth_date.as_ref().and_then(|d| {
-        chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()
-    });
+    let birth_date = fhir_patient
+        .birth_date
+        .as_ref()
+        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
 
     // Parse deceased
     let (deceased, deceased_datetime) = match &fhir_patient.deceased {
         Some(FhirDeceased::Boolean(b)) => (*b, None),
         Some(FhirDeceased::DateTime(dt)) => {
-            let parsed_dt = chrono::DateTime::parse_from_rfc3339(dt).ok()
+            let parsed_dt = chrono::DateTime::parse_from_rfc3339(dt)
+                .ok()
                 .map(|d| d.with_timezone(&Utc));
             (true, parsed_dt)
         }
@@ -291,12 +311,13 @@ pub fn from_fhir_patient(fhir_patient: &FhirPatient) -> Result<Patient> {
 
     // Parse addresses
     let addresses = if let Some(ref addrs) = fhir_patient.address {
-        addrs.iter()
+        addrs
+            .iter()
             .map(|faddr| {
                 let lines = faddr.line.clone().unwrap_or_default();
                 Address {
                     use_type: None,
-                    line1: lines.get(0).cloned(),
+                    line1: lines.first().cloned(),
                     line2: lines.get(1).cloned(),
                     city: faddr.city.clone(),
                     state: faddr.state.clone(),

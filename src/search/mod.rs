@@ -1,20 +1,20 @@
 //! Search functionality using Tantivy
 
+use std::path::Path;
 use tantivy::{
     collector::TopDocs,
     doc,
-    query::{Query, QueryParser, FuzzyTermQuery, BooleanQuery, Occur},
+    query::{BooleanQuery, FuzzyTermQuery, Occur, Query, QueryParser},
     schema::{Term, Value},
 };
-use std::path::Path;
 
-use crate::models::Patient;
 use crate::Result;
+use crate::models::Patient;
 
 pub mod index;
 pub mod query;
 
-pub use index::{PatientIndex, PatientIndexSchema, IndexStats};
+pub use index::{IndexStats, PatientIndex, PatientIndexSchema};
 
 /// Search engine for patient records
 pub struct SearchEngine {
@@ -43,7 +43,7 @@ impl SearchEngine {
         let identifiers: Vec<String> = patient
             .identifiers
             .iter()
-            .map(|id| format!("{}:{}", id.identifier_type.to_string(), id.value))
+            .map(|id| format!("{}:{}", id.identifier_type, id.value))
             .collect();
         let identifiers_str = identifiers.join(" ");
 
@@ -73,10 +73,12 @@ impl SearchEngine {
             schema.active => if patient.active { "true" } else { "false" },
         );
 
-        writer.add_document(doc)
+        writer
+            .add_document(doc)
             .map_err(|e| crate::Error::Search(format!("Failed to add document: {}", e)))?;
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| crate::Error::Search(format!("Failed to commit: {}", e)))?;
 
         Ok(())
@@ -93,7 +95,7 @@ impl SearchEngine {
             let identifiers: Vec<String> = patient
                 .identifiers
                 .iter()
-                .map(|id| format!("{}:{}", id.identifier_type.to_string(), id.value))
+                .map(|id| format!("{}:{}", id.identifier_type, id.value))
                 .collect();
             let identifiers_str = identifiers.join(" ");
 
@@ -121,11 +123,13 @@ impl SearchEngine {
                 schema.active => if patient.active { "true" } else { "false" },
             );
 
-            writer.add_document(doc)
+            writer
+                .add_document(doc)
                 .map_err(|e| crate::Error::Search(format!("Failed to add document: {}", e)))?;
         }
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| crate::Error::Search(format!("Failed to commit: {}", e)))?;
 
         Ok(())
@@ -161,10 +165,10 @@ impl SearchEngine {
                 .doc(doc_address)
                 .map_err(|e| crate::Error::Search(format!("Failed to retrieve document: {}", e)))?;
 
-            if let Some(id_value) = retrieved_doc.get_first(schema.id) {
-                if let Some(id_text) = id_value.as_str() {
-                    patient_ids.push(id_text.to_string());
-                }
+            if let Some(id_value) = retrieved_doc.get_first(schema.id)
+                && let Some(id_text) = id_value.as_str()
+            {
+                patient_ids.push(id_text.to_string());
             }
         }
 
@@ -190,10 +194,10 @@ impl SearchEngine {
                 .doc(doc_address)
                 .map_err(|e| crate::Error::Search(format!("Failed to retrieve document: {}", e)))?;
 
-            if let Some(id_value) = retrieved_doc.get_first(schema.id) {
-                if let Some(id_text) = id_value.as_str() {
-                    patient_ids.push(id_text.to_string());
-                }
+            if let Some(id_value) = retrieved_doc.get_first(schema.id)
+                && let Some(id_text) = id_value.as_str()
+            {
+                patient_ids.push(id_text.to_string());
             }
         }
 
@@ -217,10 +221,8 @@ impl SearchEngine {
         // If birth year provided, add it to the query
         let final_query: Box<dyn Query> = if let Some(year) = birth_year {
             let year_str = year.to_string();
-            let year_query_parser = QueryParser::for_index(
-                self.index.index(),
-                vec![schema.birth_date],
-            );
+            let year_query_parser =
+                QueryParser::for_index(self.index.index(), vec![schema.birth_date]);
 
             if let Ok(year_query) = year_query_parser.parse_query(&year_str) {
                 Box::new(BooleanQuery::new(vec![
@@ -244,10 +246,10 @@ impl SearchEngine {
                 .doc(doc_address)
                 .map_err(|e| crate::Error::Search(format!("Failed to retrieve document: {}", e)))?;
 
-            if let Some(id_value) = retrieved_doc.get_first(schema.id) {
-                if let Some(id_text) = id_value.as_str() {
-                    patient_ids.push(id_text.to_string());
-                }
+            if let Some(id_value) = retrieved_doc.get_first(schema.id)
+                && let Some(id_text) = id_value.as_str()
+            {
+                patient_ids.push(id_text.to_string());
             }
         }
 
@@ -262,7 +264,8 @@ impl SearchEngine {
         let term = Term::from_field_text(schema.id, patient_id);
         writer.delete_term(term);
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| crate::Error::Search(format!("Failed to commit deletion: {}", e)))?;
 
         Ok(())
@@ -287,8 +290,8 @@ impl SearchEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{HumanName, Gender};
-    use chrono::{Utc, NaiveDate};
+    use crate::models::{Gender, HumanName};
+    use chrono::{NaiveDate, Utc};
     use tempfile::TempDir;
     use uuid::Uuid;
 
@@ -400,7 +403,9 @@ mod tests {
         engine.index_patient(&patient).unwrap();
         engine.reload().unwrap(); // Ensure reader sees new document
 
-        let results = engine.search_by_name_and_year("Smith", Some(1980), 10).unwrap();
+        let results = engine
+            .search_by_name_and_year("Smith", Some(1980), 10)
+            .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], patient.id.to_string());
     }

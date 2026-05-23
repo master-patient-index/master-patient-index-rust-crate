@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Delete patient · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/patients">Patients</a></li>
+    <li><a href="/patients/{{ patient.id }}">{{ patient.family_name }}, {{ patient.given_names }}</a></li>
+    <li>Delete</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Delete patient</h1>
+  <div class="alert warning">
+    Soft delete — the record will be marked inactive but preserved for audit. This action is recoverable by an administrator.
+  </div>
+  <p>You are about to delete:</p>
+  <p><strong>{{ patient.family_name }}, {{ patient.given_names }}</strong> · <code>{{ patient.id }}</code></p>
+
+  <form method="post" action="/patients/{{ patient.id }}/delete">
+    <div class="actions">
+      <button class="button danger" type="submit">Confirm delete</button>
+      <a class="button secondary" href="/patients/{{ patient.id }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

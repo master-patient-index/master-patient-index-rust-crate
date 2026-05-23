@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Edit {{ patient.family_name }} · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/patients">Patients</a></li>
+    <li><a href="/patients/{{ patient.id }}">{{ patient.family_name }}, {{ patient.given_names }}</a></li>
+    <li>Edit</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Edit patient</h1>
+  <form method="post" action="/patients/{{ patient.id }}/edit">
+    <div class="field-row">
+      <div class="field">
+        <label for="family">Family name</label>
+        <input class="text-input" type="text" id="family" name="family" value="{{ patient.family_name }}" required>
+      </div>
+      <div class="field">
+        <label for="given">Given name(s)</label>
+        <input class="text-input" type="text" id="given" name="given" value="{{ patient.given_names }}" required>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="birth_date">Birth date</label>
+        <input class="date-input" type="date" id="birth_date" name="birth_date" value="{{ patient.birth_date | default(value='') }}">
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select class="select" id="gender" name="gender">
+          <option value="unknown"{% if patient.gender == "Unknown" %} selected{% endif %}>Unknown</option>
+          <option value="female"{% if patient.gender == "Female" %} selected{% endif %}>Female</option>
+          <option value="male"{% if patient.gender == "Male" %} selected{% endif %}>Male</option>
+          <option value="other"{% if patient.gender == "Other" %} selected{% endif %}>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="tax_id">Tax ID</label>
+      <input class="text-input" type="text" id="tax_id" name="tax_id" value="{{ patient.tax_id | default(value='') }}">
+    </div>
+
+    <div class="actions">
+      <button class="button" type="submit">Save changes</button>
+      <a class="button secondary" href="/patients/{{ patient.id }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

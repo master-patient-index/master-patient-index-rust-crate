@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Merge patients · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li>Merge</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Merge duplicate patients</h1>
+  <p class="muted">The master record is kept; the duplicate is soft-deleted and links are created. All transferred data is recorded for audit.</p>
+
+  <form method="post" action="/patients/merge">
+    <div class="field-row">
+      <div class="field">
+        <label for="master_patient_id">Master patient ID</label>
+        <input class="text-input" type="text" id="master_patient_id" name="master_patient_id" value="{{ form.master_patient_id | default(value='') }}" placeholder="UUID" required>
+        <div class="hint">The record that will be kept.</div>
+      </div>
+      <div class="field">
+        <label for="duplicate_patient_id">Duplicate patient ID</label>
+        <input class="text-input" type="text" id="duplicate_patient_id" name="duplicate_patient_id" value="{{ form.duplicate_patient_id | default(value='') }}" placeholder="UUID" required>
+        <div class="hint">The record that will be retired.</div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="merge_reason">Merge reason</label>
+      <textarea class="text-area-input" id="merge_reason" name="merge_reason" rows="3" required>{{ form.merge_reason | default(value='') }}</textarea>
+    </div>
+    <div class="actions">
+      <button class="button danger" type="submit">Merge</button>
+      <a class="button secondary" href="/patients">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% if result is defined %}
+<section class="card">
+  <h2>Merge result</h2>
+  <div class="alert success">
+    Merged successfully. Master ID <code>{{ result.master_id }}</code>, duplicate <code>{{ result.duplicate_id }}</code>.
+  </div>
+  <a class="button" href="/patients/{{ result.master_id }}">Open master record</a>
+</section>
+{% endif %}
+{% endblock %}

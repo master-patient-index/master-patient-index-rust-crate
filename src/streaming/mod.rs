@@ -1,25 +1,46 @@
 //! Event streaming with Fluvio
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
-use crate::models::Patient;
 use crate::Result;
+use crate::models::Patient;
 
-pub mod producer;
 pub mod consumer;
+pub mod producer;
 
 /// Patient event types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event_type")]
 pub enum PatientEvent {
-    Created { patient: Patient, timestamp: DateTime<Utc> },
-    Updated { patient: Patient, timestamp: DateTime<Utc> },
-    Deleted { patient_id: Uuid, timestamp: DateTime<Utc> },
-    Merged { source_id: Uuid, target_id: Uuid, timestamp: DateTime<Utc> },
-    Linked { patient_id: Uuid, linked_id: Uuid, timestamp: DateTime<Utc> },
-    Unlinked { patient_id: Uuid, unlinked_id: Uuid, timestamp: DateTime<Utc> },
+    Created {
+        patient: Patient,
+        timestamp: DateTime<Utc>,
+    },
+    Updated {
+        patient: Patient,
+        timestamp: DateTime<Utc>,
+    },
+    Deleted {
+        patient_id: Uuid,
+        timestamp: DateTime<Utc>,
+    },
+    Merged {
+        source_id: Uuid,
+        target_id: Uuid,
+        timestamp: DateTime<Utc>,
+    },
+    Linked {
+        patient_id: Uuid,
+        linked_id: Uuid,
+        timestamp: DateTime<Utc>,
+    },
+    Unlinked {
+        patient_id: Uuid,
+        unlinked_id: Uuid,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 impl PatientEvent {

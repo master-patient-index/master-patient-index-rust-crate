@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard · Master Patient Index{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Master Patient Index</h1>
+  <p class="muted">Centralized registry of patient identities — search, match, and merge.</p>
+  <div class="actions">
+    <a class="button" href="/patients">Browse patients</a>
+    <a class="button secondary" href="/patients/new">Register new patient</a>
+    <a class="button secondary" href="/patients/match">Find a match</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>At a glance</h2>
+  <div class="field-row">
+    <div class="field">
+      <label>Total patients</label>
+      <div><strong>{{ stats.total | default(value="—") }}</strong></div>
+    </div>
+    <div class="field">
+      <label>Active</label>
+      <div><strong>{{ stats.active | default(value="—") }}</strong></div>
+    </div>
+    <div class="field">
+      <label>Pending review</label>
+      <div><strong>{{ stats.review_queue | default(value="—") }}</strong></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

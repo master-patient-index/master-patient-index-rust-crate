@@ -1,12 +1,12 @@
 //! Application state for REST API
 
-use std::sync::Arc;
 use sea_orm::DatabaseConnection;
+use std::sync::Arc;
 
-use crate::search::SearchEngine;
-use crate::matching::{ProbabilisticMatcher, PatientMatcher};
 use crate::config::Config;
-use crate::db::{PatientRepository, SeaOrmPatientRepository, AuditLogRepository};
+use crate::db::{AuditLogRepository, PatientRepository, SeaOrmPatientRepository};
+use crate::matching::{PatientMatcher, ProbabilisticMatcher};
+use crate::search::SearchEngine;
 use crate::streaming::{EventProducer, InMemoryEventPublisher};
 
 /// Shared application state
@@ -52,7 +52,7 @@ impl AppState {
         let patient_repository = Arc::new(
             SeaOrmPatientRepository::new(db.clone())
                 .with_event_publisher(event_publisher.clone())
-                .with_audit_log(audit_log.clone())
+                .with_audit_log(audit_log.clone()),
         ) as Arc<dyn PatientRepository>;
 
         let patient_matcher = Arc::new(matcher) as Arc<dyn PatientMatcher>;

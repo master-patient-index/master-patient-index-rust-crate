@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block title %}{{ patient.family_name }}, {{ patient.given_names }} · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/patients">Patients</a></li>
+    <li>{{ patient.family_name }}, {{ patient.given_names }}</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <h1>{{ patient.family_name }}, {{ patient.given_names }}</h1>
+      <p class="muted"><code>{{ patient.id }}</code> ·
+        {% if patient.active %}
+          <span class="badge success">active</span>
+        {% else %}
+          <span class="badge">inactive</span>
+        {% endif %}
+      </p>
+    </div>
+    <div class="actions" style="margin-top:0;">
+      <a class="button" href="/patients/{{ patient.id }}/edit">Edit</a>
+      <a class="button danger" href="/patients/{{ patient.id }}/delete">Delete</a>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Demographics</h2>
+  <div class="field-row">
+    <div class="field"><label>Birth date</label><div>{{ patient.birth_date | default(value="—") }}</div></div>
+    <div class="field"><label>Gender</label><div>{{ patient.gender }}</div></div>
+    <div class="field"><label>Tax ID</label><div>{{ patient.tax_id | default(value="—") }}</div></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Identifiers</h2>
+  {% if patient.identifiers and patient.identifiers | length > 0 %}
+    <table class="data-table">
+      <thead><tr><th>Type</th><th>System</th><th>Value</th></tr></thead>
+      <tbody>
+        {% for id in patient.identifiers %}
+          <tr><td>{{ id.identifier_type }}</td><td>{{ id.system }}</td><td><code>{{ id.value }}</code></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No identifiers on file.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Contact</h2>
+  {% if patient.telecom and patient.telecom | length > 0 %}
+    <table class="data-table">
+      <thead><tr><th>System</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        {% for cp in patient.telecom %}
+          <tr><td>{{ cp.system }}</td><td>{{ cp.value }}</td><td>{{ cp.use_type | default(value="—") }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No contact information.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Addresses</h2>
+  {% if patient.addresses and patient.addresses | length > 0 %}
+    {% for addr in patient.addresses %}
+      <div style="margin-bottom: var(--space-3);">
+        <div>{{ addr.line1 | default(value="") }}{% if addr.line2 %}, {{ addr.line2 }}{% endif %}</div>
+        <div class="muted">{{ addr.city | default(value="") }}{% if addr.state %}, {{ addr.state }}{% endif %} {{ addr.postal_code | default(value="") }} · {{ addr.country | default(value="") }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="muted">No addresses on file.</p>
+  {% endif %}
+</section>
+{% endblock %}

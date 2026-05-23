@@ -2,7 +2,7 @@
 
 use axum::{
     Router,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
 };
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
@@ -109,7 +109,10 @@ pub fn create_router(state: AppState) -> Router {
         // Matching
         .route("/patients/match", post(handlers::match_patient))
         // Duplicate detection & deduplication
-        .route("/patients/check-duplicates", post(handlers::check_duplicates))
+        .route(
+            "/patients/check-duplicates",
+            post(handlers::check_duplicates),
+        )
         .route("/patients/merge", post(handlers::merge_patients))
         .route("/patients/deduplicate", post(handlers::batch_deduplicate))
         // Privacy
@@ -143,4 +146,28 @@ pub async fn serve(state: AppState) -> Result<()> {
         .map_err(|e| crate::Error::Api(e.to_string()))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openapi_spec_generates() {
+        let spec = ApiDoc::openapi();
+        let json = serde_json::to_value(&spec).expect("OpenAPI spec must serialize to JSON");
+        assert_eq!(json["info"]["title"], "Master Patient Index API");
+        let paths = json["paths"].as_object().expect("paths object");
+        assert!(
+            !paths.is_empty(),
+            "expected OpenAPI spec to document at least one path"
+        );
+        assert!(
+            json["components"]["schemas"]
+                .as_object()
+                .unwrap()
+                .contains_key("Patient"),
+            "Patient schema must be registered"
+        );
+    }
 }

@@ -1,10 +1,10 @@
 //! Search index management with Tantivy
 
-use tantivy::{
-    schema::{Schema, Field, STORED, TEXT, STRING, FAST},
-    Index, IndexWriter, IndexReader, ReloadPolicy,
-};
 use std::path::Path;
+use tantivy::{
+    Index, IndexReader, IndexWriter, ReloadPolicy,
+    schema::{FAST, Field, STORED, STRING, Schema, TEXT},
+};
 
 use crate::Result;
 
@@ -160,7 +160,8 @@ impl PatientIndex {
 
     /// Manually reload the reader (useful for tests)
     pub fn reload(&self) -> Result<()> {
-        self.reader.reload()
+        self.reader
+            .reload()
             .map_err(|e| crate::Error::Search(format!("Failed to reload reader: {}", e)))
     }
 
@@ -272,7 +273,7 @@ mod tests {
 
         let mut writer = patient_index.writer(50).unwrap();
         let mut doc = tantivy::TantivyDocument::default();
-        doc.add_text(schema.id, &uuid::Uuid::new_v4().to_string());
+        doc.add_text(schema.id, uuid::Uuid::new_v4().to_string());
         doc.add_text(schema.family_name, "johnson");
         doc.add_text(schema.given_names, "robert");
         doc.add_text(schema.full_name, "robert johnson");
@@ -286,7 +287,11 @@ mod tests {
         let term = Term::from_field_text(schema.family_name, "jonson"); // typo
         let query = FuzzyTermQuery::new(term, 1, true);
         let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
-        assert_eq!(top_docs.len(), 1, "Fuzzy search should find 'johnson' with typo 'jonson'");
+        assert_eq!(
+            top_docs.len(),
+            1,
+            "Fuzzy search should find 'johnson' with typo 'jonson'"
+        );
     }
 
     #[test]
@@ -323,14 +328,18 @@ mod tests {
         }
 
         patient_index.reload().unwrap();
-        assert_eq!(patient_index.stats().unwrap().num_docs, 0, "Document should be deleted");
+        assert_eq!(
+            patient_index.stats().unwrap().num_docs,
+            0,
+            "Document should be deleted"
+        );
     }
 
     #[test]
     fn test_search_no_results() {
         use tantivy::collector::TopDocs;
         use tantivy::query::TermQuery;
-        use tantivy::schema::{Term, IndexRecordOption};
+        use tantivy::schema::{IndexRecordOption, Term};
 
         let temp_dir = TempDir::new().unwrap();
         let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
@@ -341,14 +350,18 @@ mod tests {
         let term = Term::from_field_text(schema.family_name, "nonexistent");
         let query = TermQuery::new(term, IndexRecordOption::Basic);
         let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
-        assert_eq!(top_docs.len(), 0, "Search on empty index should return 0 results");
+        assert_eq!(
+            top_docs.len(),
+            0,
+            "Search on empty index should return 0 results"
+        );
     }
 
     #[test]
     fn test_search_by_name_and_year_filter() {
         use tantivy::collector::TopDocs;
         use tantivy::query::{BooleanQuery, TermQuery};
-        use tantivy::schema::{Term, IndexRecordOption};
+        use tantivy::schema::{IndexRecordOption, Term};
 
         let temp_dir = TempDir::new().unwrap();
         let patient_index = PatientIndex::create(temp_dir.path()).unwrap();
@@ -359,7 +372,7 @@ mod tests {
         // Add two patients: same name, different birth years
         for birth_date in &["1980-01-15", "1990-06-20"] {
             let mut doc = tantivy::TantivyDocument::default();
-            doc.add_text(schema.id, &uuid::Uuid::new_v4().to_string());
+            doc.add_text(schema.id, uuid::Uuid::new_v4().to_string());
             doc.add_text(schema.family_name, "smith");
             doc.add_text(schema.given_names, "john");
             doc.add_text(schema.full_name, "john smith");
@@ -381,6 +394,10 @@ mod tests {
             Box::new(TermQuery::new(dob_term, IndexRecordOption::Basic)),
         ]);
         let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
-        assert_eq!(top_docs.len(), 1, "Should find exactly 1 patient with matching name+DOB");
+        assert_eq!(
+            top_docs.len(),
+            1,
+            "Should find exactly 1 patient with matching name+DOB"
+        );
     }
 }

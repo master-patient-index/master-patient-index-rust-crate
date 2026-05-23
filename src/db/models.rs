@@ -58,22 +58,34 @@ pub mod patients {
     }
 
     impl Related<super::patient_names::Entity> for Entity {
-        fn to() -> RelationDef { Relation::PatientNames.def() }
+        fn to() -> RelationDef {
+            Relation::PatientNames.def()
+        }
     }
     impl Related<super::patient_identifiers::Entity> for Entity {
-        fn to() -> RelationDef { Relation::PatientIdentifiers.def() }
+        fn to() -> RelationDef {
+            Relation::PatientIdentifiers.def()
+        }
     }
     impl Related<super::patient_addresses::Entity> for Entity {
-        fn to() -> RelationDef { Relation::PatientAddresses.def() }
+        fn to() -> RelationDef {
+            Relation::PatientAddresses.def()
+        }
     }
     impl Related<super::patient_contacts::Entity> for Entity {
-        fn to() -> RelationDef { Relation::PatientContacts.def() }
+        fn to() -> RelationDef {
+            Relation::PatientContacts.def()
+        }
     }
     impl Related<super::patient_links::Entity> for Entity {
-        fn to() -> RelationDef { Relation::PatientLinks.def() }
+        fn to() -> RelationDef {
+            Relation::PatientLinks.def()
+        }
     }
     impl Related<super::organizations::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Organization.def() }
+        fn to() -> RelationDef {
+            Relation::Organization.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -113,7 +125,9 @@ pub mod patient_names {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -152,7 +166,9 @@ pub mod patient_identifiers {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -194,7 +210,9 @@ pub mod patient_addresses {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -232,7 +250,9 @@ pub mod patient_contacts {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -268,7 +288,9 @@ pub mod patient_links {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -310,13 +332,19 @@ pub mod organizations {
     }
 
     impl Related<super::organization_addresses::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Addresses.def() }
+        fn to() -> RelationDef {
+            Relation::Addresses.def()
+        }
     }
     impl Related<super::organization_contacts::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Contacts.def() }
+        fn to() -> RelationDef {
+            Relation::Contacts.def()
+        }
     }
     impl Related<super::organization_identifiers::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Identifiers.def() }
+        fn to() -> RelationDef {
+            Relation::Identifiers.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -358,7 +386,9 @@ pub mod organization_addresses {
     }
 
     impl Related<super::organizations::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Organization.def() }
+        fn to() -> RelationDef {
+            Relation::Organization.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -396,7 +426,9 @@ pub mod organization_contacts {
     }
 
     impl Related<super::organizations::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Organization.def() }
+        fn to() -> RelationDef {
+            Relation::Organization.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -435,7 +467,9 @@ pub mod organization_identifiers {
     }
 
     impl Related<super::organizations::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Organization.def() }
+        fn to() -> RelationDef {
+            Relation::Organization.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -481,7 +515,9 @@ pub mod patient_match_scores {
     }
 
     impl Related<super::patients::Entity> for Entity {
-        fn to() -> RelationDef { Relation::Patient.def() }
+        fn to() -> RelationDef {
+            Relation::Patient.def()
+        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}

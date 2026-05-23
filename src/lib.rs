@@ -17,6 +17,7 @@
 
 // Module declarations
 pub mod api;
+pub mod app;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -27,6 +28,7 @@ pub mod privacy;
 pub mod search;
 pub mod streaming;
 pub mod validation;
+pub mod web;
 
 // Re-exports
 pub use error::{Error, Result};

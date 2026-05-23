@@ -1,14 +1,14 @@
 //! Patient matching algorithms and scoring
 
-use crate::models::Patient;
-use crate::config::MatchingConfig;
 use crate::Result;
+use crate::config::MatchingConfig;
+use crate::models::Patient;
 
 pub mod algorithms;
 pub mod phonetic;
 pub mod scoring;
 
-pub use scoring::{ProbabilisticScorer, DeterministicScorer, MatchQuality};
+pub use scoring::{DeterministicScorer, MatchQuality, ProbabilisticScorer};
 
 /// Match result containing a patient and their match score
 #[derive(Debug, Clone)]
@@ -170,7 +170,7 @@ impl PatientMatcher for DeterministicMatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{HumanName, Gender};
+    use crate::models::{Gender, HumanName};
     use chrono::NaiveDate;
 
     fn create_test_config() -> MatchingConfig {
@@ -234,7 +234,11 @@ mod tests {
         let matches = matcher.find_matches(&patient, &candidates).unwrap();
 
         // Should find at least one match (the exact match)
-        assert!(matches.len() >= 1, "Expected at least 1 match, got {}", matches.len());
+        assert!(
+            !matches.is_empty(),
+            "Expected at least 1 match, got {}",
+            matches.len()
+        );
 
         // First match should have highest score
         if matches.len() > 1 {
@@ -289,7 +293,11 @@ mod tests {
 
         let result = matcher.match_patients(&patient, &candidate).unwrap();
         // Name + DOB + Gender matching should exceed 0.60
-        assert!(result.score >= 0.60, "Exact match should exceed threshold 0.60, got {}", result.score);
+        assert!(
+            result.score >= 0.60,
+            "Exact match should exceed threshold 0.60, got {}",
+            result.score
+        );
         assert!(matcher.is_match(result.score));
     }
 
@@ -316,8 +324,12 @@ mod tests {
 
         // Results should be sorted descending by score
         for window in matches.windows(2) {
-            assert!(window[0].score >= window[1].score,
-                "Results should be sorted descending: {} >= {}", window[0].score, window[1].score);
+            assert!(
+                window[0].score >= window[1].score,
+                "Results should be sorted descending: {} >= {}",
+                window[0].score,
+                window[1].score
+            );
         }
     }
 
@@ -330,6 +342,9 @@ mod tests {
         let patient = create_test_patient("Smith", "John", dob);
 
         let matches = matcher.find_matches(&patient, &[]).unwrap();
-        assert!(matches.is_empty(), "Empty candidates should produce empty results");
+        assert!(
+            matches.is_empty(),
+            "Empty candidates should produce empty results"
+        );
     }
 }

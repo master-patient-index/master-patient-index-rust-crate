@@ -1,0 +1,34 @@
+logger:
+  enable: true
+  pretty_backtrace: false
+  level: info
+  format: json
+
+server:
+  binding: "{{ get_env(name='SERVER_HOST', default='0.0.0.0') }}"
+  port: {{ get_env(name="SERVER_PORT", default="8080") }}
+  host: "{{ get_env(name='SERVER_PUBLIC_URL', default='http://localhost') }}"
+  ident: "master-patient-index"
+  middlewares:
+    static_assets:
+      enable: true
+      must_exist: true
+      precompressed: false
+      folder:
+        uri: "/static"
+        path: "assets/static"
+      fallback: "assets/static/404.html"
+
+database:
+  uri: "{{ get_env(name='DATABASE_URL') }}"
+  enable_logging: false
+  connect_timeout: 500
+  idle_timeout: 500
+  min_connections: {{ get_env(name="DATABASE_MIN_CONNECTIONS", default="2") }}
+  max_connections: {{ get_env(name="DATABASE_MAX_CONNECTIONS", default="20") }}
+  auto_migrate: false
+  dangerously_truncate: false
+  dangerously_recreate: false
+
+workers:
+  mode: ForegroundBlocking

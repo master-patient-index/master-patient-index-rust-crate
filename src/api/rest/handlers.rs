@@ -1,19 +1,19 @@
 //! REST API request handlers
 
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
     response::IntoResponse,
 };
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use utoipa::ToSchema;
 use chrono::Datelike;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
 
-use crate::models::Patient;
-use crate::api::ApiResponse;
 use super::state::AppState;
+use crate::api::ApiResponse;
+use crate::models::Patient;
 
 /// Health check response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -69,10 +69,14 @@ pub async fn create_patient(
     if !validation_errors.is_empty() {
         let error = ApiResponse::<Patient>::error(
             "VALIDATION_ERROR",
-            format!("Validation failed: {}", validation_errors.iter()
-                .map(|e| format!("{}: {}", e.field, e.message))
-                .collect::<Vec<_>>()
-                .join("; "))
+            format!(
+                "Validation failed: {}",
+                validation_errors
+                    .iter()
+                    .map(|e| format!("{}: {}", e.field, e.message))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
         );
         return (StatusCode::UNPROCESSABLE_ENTITY, Json(error));
     }
@@ -92,7 +96,7 @@ pub async fn create_patient(
         let details = serde_json::to_value(&dup_response).ok();
         let mut error = ApiResponse::<Patient>::error(
             "DUPLICATE_DETECTED",
-            "Potential duplicate patients found. Review matches before proceeding."
+            "Potential duplicate patients found. Review matches before proceeding.",
         );
         if let Some(ref mut err) = error.error {
             err.details = details;
@@ -113,7 +117,7 @@ pub async fn create_patient(
         Err(e) => {
             let error = ApiResponse::<Patient>::error(
                 "DATABASE_ERROR",
-                format!("Failed to create patient: {}", e)
+                format!("Failed to create patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -134,25 +138,20 @@ pub async fn create_patient(
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn get_patient(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+pub async fn get_patient(State(state): State<AppState>, Path(id): Path<Uuid>) -> impl IntoResponse {
     match state.patient_repository.get_by_id(&id).await {
-        Ok(Some(patient)) => {
-            (StatusCode::OK, Json(ApiResponse::success(patient)))
-        }
+        Ok(Some(patient)) => (StatusCode::OK, Json(ApiResponse::success(patient))),
         Ok(None) => {
             let error = ApiResponse::<Patient>::error(
                 "NOT_FOUND",
-                format!("Patient with id '{}' not found", id)
+                format!("Patient with id '{}' not found", id),
             );
             (StatusCode::NOT_FOUND, Json(error))
         }
         Err(e) => {
             let error = ApiResponse::<Patient>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve patient: {}", e)
+                format!("Failed to retrieve patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -184,10 +183,14 @@ pub async fn update_patient(
     if !validation_errors.is_empty() {
         let error = ApiResponse::<Patient>::error(
             "VALIDATION_ERROR",
-            format!("Validation failed: {}", validation_errors.iter()
-                .map(|e| format!("{}: {}", e.field, e.message))
-                .collect::<Vec<_>>()
-                .join("; "))
+            format!(
+                "Validation failed: {}",
+                validation_errors
+                    .iter()
+                    .map(|e| format!("{}: {}", e.field, e.message))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
         );
         return (StatusCode::UNPROCESSABLE_ENTITY, Json(error));
     }
@@ -207,7 +210,7 @@ pub async fn update_patient(
         Err(e) => {
             let error = ApiResponse::<Patient>::error(
                 "DATABASE_ERROR",
-                format!("Failed to update patient: {}", e)
+                format!("Failed to update patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -243,7 +246,7 @@ pub async fn delete_patient(
         Err(e) => {
             let error = ApiResponse::<()>::error(
                 "DATABASE_ERROR",
-                format!("Failed to delete patient: {}", e)
+                format!("Failed to delete patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -321,10 +324,7 @@ pub async fn search_patients(
     match patient_ids {
         Ok(ids) => {
             // Apply offset and limit
-            let paginated_ids: Vec<_> = ids.into_iter()
-                .skip(params.offset)
-                .take(limit)
-                .collect();
+            let paginated_ids: Vec<_> = ids.into_iter().skip(params.offset).take(limit).collect();
 
             // Fetch full patient records from database
             let mut patients = Vec::new();
@@ -346,7 +346,10 @@ pub async fn search_patients(
                         }
                     }
                     Ok(None) => {
-                        tracing::warn!("Patient {} found in search index but not in database", patient_id);
+                        tracing::warn!(
+                            "Patient {} found in search index but not in database",
+                            patient_id
+                        );
                     }
                     Err(e) => {
                         tracing::error!("Failed to fetch patient {}: {}", patient_id, e);
@@ -366,7 +369,7 @@ pub async fn search_patients(
         Err(e) => {
             let error = ApiResponse::<SearchResponse>::error(
                 "SEARCH_ERROR",
-                format!("Search failed: {}", e)
+                format!("Search failed: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -429,7 +432,8 @@ pub async fn match_patient(
     let family_name = &payload.patient.name.family;
     let birth_year = payload.patient.birth_date.map(|d| d.year());
 
-    let candidate_ids = state.search_engine
+    let candidate_ids = state
+        .search_engine
         .search_by_name_and_year(family_name, birth_year, 100);
 
     match candidate_ids {
@@ -448,7 +452,10 @@ pub async fn match_patient(
                 match state.patient_repository.get_by_id(&patient_id).await {
                     Ok(Some(patient)) => candidates.push(patient),
                     Ok(None) => {
-                        tracing::warn!("Patient {} found in search index but not in database", patient_id);
+                        tracing::warn!(
+                            "Patient {} found in search index but not in database",
+                            patient_id
+                        );
                     }
                     Err(e) => {
                         tracing::error!("Failed to fetch patient {}: {}", patient_id, e);
@@ -462,7 +469,7 @@ pub async fn match_patient(
                 Err(e) => {
                     let error = ApiResponse::<MatchResultsResponse>::error(
                         "MATCH_ERROR",
-                        format!("Matching failed: {}", e)
+                        format!("Matching failed: {}", e),
                     );
                     return (StatusCode::INTERNAL_SERVER_ERROR, Json(error));
                 }
@@ -470,7 +477,8 @@ pub async fn match_patient(
 
             // Filter by threshold if provided
             let threshold = payload.threshold.unwrap_or(0.5);
-            let matches: Vec<MatchResponse> = match_results.into_iter()
+            let matches: Vec<MatchResponse> = match_results
+                .into_iter()
                 .filter(|m| m.score >= threshold)
                 .take(payload.limit)
                 .map(|m| {
@@ -503,7 +511,7 @@ pub async fn match_patient(
         Err(e) => {
             let error = ApiResponse::<MatchResultsResponse>::error(
                 "MATCH_ERROR",
-                format!("Matching failed: {}", e)
+                format!("Matching failed: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -524,10 +532,14 @@ async fn check_duplicates_internal(state: &AppState, patient: &Patient) -> Vec<M
     let family_name = &patient.name.family;
     let birth_year = patient.birth_date.map(|d| d.year());
 
-    let candidate_ids = match state.search_engine.search_by_name_and_year(family_name, birth_year, 50) {
-        Ok(ids) => ids,
-        Err(_) => return Vec::new(),
-    };
+    let candidate_ids =
+        match state
+            .search_engine
+            .search_by_name_and_year(family_name, birth_year, 50)
+        {
+            Ok(ids) => ids,
+            Err(_) => return Vec::new(),
+        };
 
     let mut candidates = Vec::new();
     for id_str in candidate_ids {
@@ -547,13 +559,18 @@ async fn check_duplicates_internal(state: &AppState, patient: &Patient) -> Vec<M
     };
 
     // Return matches above the auto-review threshold (0.7)
-    match_results.into_iter()
+    match_results
+        .into_iter()
         .filter(|m| m.score >= 0.7)
         .take(10)
         .map(|m| {
-            let quality = if m.score >= 0.95 { "certain" }
-                else if m.score >= 0.7 { "probable" }
-                else { "possible" };
+            let quality = if m.score >= 0.95 {
+                "certain"
+            } else if m.score >= 0.7 {
+                "probable"
+            } else {
+                "possible"
+            };
 
             MatchResponse {
                 patient: m.patient.clone(),
@@ -608,31 +625,55 @@ pub async fn merge_patients(
     Json(req): Json<crate::models::MergeRequest>,
 ) -> impl IntoResponse {
     // Fetch both patients
-    let master = match state.patient_repository.get_by_id(&req.master_patient_id).await {
+    let master = match state
+        .patient_repository
+        .get_by_id(&req.master_patient_id)
+        .await
+    {
         Ok(Some(p)) => p,
         Ok(None) => {
-            return (StatusCode::NOT_FOUND, Json(ApiResponse::<crate::models::MergeResponse>::error(
-                "NOT_FOUND", format!("Master patient {} not found", req.master_patient_id)
-            )));
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ApiResponse::<crate::models::MergeResponse>::error(
+                    "NOT_FOUND",
+                    format!("Master patient {} not found", req.master_patient_id),
+                )),
+            );
         }
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<crate::models::MergeResponse>::error(
-                "DATABASE_ERROR", format!("Failed to fetch master patient: {}", e)
-            )));
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<crate::models::MergeResponse>::error(
+                    "DATABASE_ERROR",
+                    format!("Failed to fetch master patient: {}", e),
+                )),
+            );
         }
     };
 
-    let duplicate = match state.patient_repository.get_by_id(&req.duplicate_patient_id).await {
+    let duplicate = match state
+        .patient_repository
+        .get_by_id(&req.duplicate_patient_id)
+        .await
+    {
         Ok(Some(p)) => p,
         Ok(None) => {
-            return (StatusCode::NOT_FOUND, Json(ApiResponse::<crate::models::MergeResponse>::error(
-                "NOT_FOUND", format!("Duplicate patient {} not found", req.duplicate_patient_id)
-            )));
+            return (
+                StatusCode::NOT_FOUND,
+                Json(ApiResponse::<crate::models::MergeResponse>::error(
+                    "NOT_FOUND",
+                    format!("Duplicate patient {} not found", req.duplicate_patient_id),
+                )),
+            );
         }
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<crate::models::MergeResponse>::error(
-                "DATABASE_ERROR", format!("Failed to fetch duplicate patient: {}", e)
-            )));
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<crate::models::MergeResponse>::error(
+                    "DATABASE_ERROR",
+                    format!("Failed to fetch duplicate patient: {}", e),
+                )),
+            );
         }
     };
 
@@ -642,9 +683,12 @@ pub async fn merge_patients(
 
     // Transfer identifiers not already present
     for id in &duplicate.identifiers {
-        if !merged.identifiers.iter().any(|existing| existing.value == id.value && existing.identifier_type == id.identifier_type) {
+        if !merged.identifiers.iter().any(|existing| {
+            existing.value == id.value && existing.identifier_type == id.identifier_type
+        }) {
             merged.identifiers.push(id.clone());
-            transferred.entry("identifiers".to_string())
+            transferred
+                .entry("identifiers".to_string())
                 .or_insert_with(|| serde_json::Value::Array(vec![]))
                 .as_array_mut()
                 .unwrap()
@@ -668,21 +712,31 @@ pub async fn merge_patients(
 
     // Transfer contacts
     for cp in &duplicate.telecom {
-        if !merged.telecom.iter().any(|existing| existing.value == cp.value) {
+        if !merged
+            .telecom
+            .iter()
+            .any(|existing| existing.value == cp.value)
+        {
             merged.telecom.push(cp.clone());
         }
     }
 
     // Transfer documents
     for doc in &duplicate.documents {
-        if !merged.documents.iter().any(|existing| existing.number == doc.number && existing.document_type == doc.document_type) {
+        if !merged.documents.iter().any(|existing| {
+            existing.number == doc.number && existing.document_type == doc.document_type
+        }) {
             merged.documents.push(doc.clone());
         }
     }
 
     // Transfer emergency contacts
     for ec in &duplicate.emergency_contacts {
-        if !merged.emergency_contacts.iter().any(|existing| existing.name == ec.name) {
+        if !merged
+            .emergency_contacts
+            .iter()
+            .any(|existing| existing.name == ec.name)
+        {
             merged.emergency_contacts.push(ec.clone());
         }
     }
@@ -690,7 +744,10 @@ pub async fn merge_patients(
     // Transfer tax_id if master doesn't have one
     if merged.tax_id.is_none() && duplicate.tax_id.is_some() {
         merged.tax_id = duplicate.tax_id.clone();
-        transferred.insert("tax_id".into(), serde_json::to_value(&duplicate.tax_id).unwrap_or_default());
+        transferred.insert(
+            "tax_id".into(),
+            serde_json::to_value(&duplicate.tax_id).unwrap_or_default(),
+        );
     }
 
     // Add a link from master → replaces duplicate
@@ -701,9 +758,13 @@ pub async fn merge_patients(
 
     // Update master patient
     if let Err(e) = state.patient_repository.update(&merged).await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<crate::models::MergeResponse>::error(
-            "DATABASE_ERROR", format!("Failed to update master patient: {}", e)
-        )));
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<crate::models::MergeResponse>::error(
+                "DATABASE_ERROR",
+                format!("Failed to update master patient: {}", e),
+            )),
+        );
     }
 
     // Soft-delete the duplicate
@@ -712,7 +773,10 @@ pub async fn merge_patients(
     }
 
     // Remove duplicate from search index
-    if let Err(e) = state.search_engine.delete_patient(&duplicate.id.to_string()) {
+    if let Err(e) = state
+        .search_engine
+        .delete_patient(&duplicate.id.to_string())
+    {
         tracing::warn!("Failed to remove duplicate from search index: {}", e);
     }
 
@@ -722,11 +786,14 @@ pub async fn merge_patients(
     }
 
     // Publish merge event
-    state.event_publisher.publish(crate::streaming::PatientEvent::Merged {
-        source_id: duplicate.id,
-        target_id: merged.id,
-        timestamp: chrono::Utc::now(),
-    }).ok();
+    state
+        .event_publisher
+        .publish(crate::streaming::PatientEvent::Merged {
+            source_id: duplicate.id,
+            target_id: merged.id,
+            timestamp: chrono::Utc::now(),
+        })
+        .ok();
 
     // Create merge record
     let merge_record = crate::models::MergeRecord {
@@ -770,9 +837,15 @@ pub async fn batch_deduplicate(
     let patients = match state.patient_repository.list_active(1000, 0).await {
         Ok(p) => p,
         Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<crate::models::BatchDeduplicationResponse>::error(
-                "DATABASE_ERROR", format!("Failed to list patients: {}", e)
-            )));
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(
+                    ApiResponse::<crate::models::BatchDeduplicationResponse>::error(
+                        "DATABASE_ERROR",
+                        format!("Failed to list patients: {}", e),
+                    ),
+                ),
+            );
         }
     };
 
@@ -783,7 +856,8 @@ pub async fn batch_deduplicate(
 
     for (i, patient) in patients.iter().enumerate() {
         // Compare with subsequent patients to avoid duplicate pairs
-        let candidates: Vec<_> = patients[i+1..].iter()
+        let candidates: Vec<_> = patients[i + 1..]
+            .iter()
             .take(req.max_candidates)
             .cloned()
             .collect();
@@ -813,9 +887,13 @@ pub async fn batch_deduplicate(
                 continue;
             }
 
-            let quality = if m.score >= 0.95 { "certain" }
-                else if m.score >= 0.7 { "probable" }
-                else { "possible" };
+            let quality = if m.score >= 0.95 {
+                "certain"
+            } else if m.score >= 0.7 {
+                "probable"
+            } else {
+                "possible"
+            };
 
             let status = if m.score >= req.auto_merge_threshold {
                 auto_merged += 1;
@@ -840,7 +918,10 @@ pub async fn batch_deduplicate(
         }
     }
 
-    let queued = review_items.iter().filter(|r| r.status == crate::models::ReviewStatus::Pending).count();
+    let queued = review_items
+        .iter()
+        .filter(|r| r.status == crate::models::ReviewStatus::Pending)
+        .count();
 
     let response = crate::models::BatchDeduplicationResponse {
         patients_scanned,
@@ -881,14 +962,14 @@ pub async fn export_patient_data(
         Ok(None) => {
             let error = ApiResponse::<serde_json::Value>::error(
                 "NOT_FOUND",
-                format!("Patient with id '{}' not found", id)
+                format!("Patient with id '{}' not found", id),
             );
             (StatusCode::NOT_FOUND, Json(error))
         }
         Err(e) => {
             let error = ApiResponse::<serde_json::Value>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve patient: {}", e)
+                format!("Failed to retrieve patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -921,14 +1002,14 @@ pub async fn get_patient_masked(
         Ok(None) => {
             let error = ApiResponse::<Patient>::error(
                 "NOT_FOUND",
-                format!("Patient with id '{}' not found", id)
+                format!("Patient with id '{}' not found", id),
             );
             (StatusCode::NOT_FOUND, Json(error))
         }
         Err(e) => {
             let error = ApiResponse::<Patient>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve patient: {}", e)
+                format!("Failed to retrieve patient: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -970,12 +1051,16 @@ pub async fn get_patient_audit_logs(
 ) -> impl IntoResponse {
     let limit = params.limit.min(500);
 
-    match state.audit_log.get_logs_for_entity("Patient", id, limit as u64).await {
+    match state
+        .audit_log
+        .get_logs_for_entity("Patient", id, limit as u64)
+        .await
+    {
         Ok(logs) => (StatusCode::OK, Json(ApiResponse::success(logs))),
         Err(e) => {
             let error = ApiResponse::<Vec<crate::db::models::audit_log::Model>>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve audit logs: {}", e)
+                format!("Failed to retrieve audit logs: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -1004,7 +1089,7 @@ pub async fn get_recent_audit_logs(
         Err(e) => {
             let error = ApiResponse::<Vec<crate::db::models::audit_log::Model>>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve audit logs: {}", e)
+                format!("Failed to retrieve audit logs: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }
@@ -1039,12 +1124,16 @@ pub async fn get_user_audit_logs(
 ) -> impl IntoResponse {
     let limit = params.limit.min(500);
 
-    match state.audit_log.get_logs_by_user(&params.user_id, limit as u64).await {
+    match state
+        .audit_log
+        .get_logs_by_user(&params.user_id, limit as u64)
+        .await
+    {
         Ok(logs) => (StatusCode::OK, Json(ApiResponse::success(logs))),
         Err(e) => {
             let error = ApiResponse::<Vec<crate::db::models::audit_log::Model>>::error(
                 "DATABASE_ERROR",
-                format!("Failed to retrieve audit logs: {}", e)
+                format!("Failed to retrieve audit logs: {}", e),
             );
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
         }

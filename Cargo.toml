@@ -28,8 +28,9 @@ sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls"
 sea-orm-migration = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
 
-# Web Framework (full-stack)
-loco-rs = "0.14"
+# Web framework (full-stack, mounts existing Axum router via after_routes hook)
+# Pinned to 0.13 because 0.14+ pulls axum 0.8 which conflicts with our axum 0.7.
+loco-rs = "0.13"
 
 # Templating
 tera = "1.20"
@@ -37,17 +38,9 @@ tera = "1.20"
 # Search Engine
 tantivy = "0.22"
 
-# gRPC
-tonic = { version = "0.12", features = ["transport", "codegen", "prost"] }
-prost = "0.13"
-
 # OpenAPI Documentation
 utoipa = { version = "5.4", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "8.1", features = ["axum"] }
-openapiv3 = "2.2"
-
-# Data Streaming
-fluvio = "0.23"
 
 # OpenTelemetry (Observability)
 opentelemetry = { version = "0.27", features = ["trace", "metrics", "logs"] }
@@ -73,7 +66,6 @@ fuzzy-matcher = "0.3"
 
 # Security
 argon2 = "0.5"
-jsonwebtoken = "9.3"
 
 [dev-dependencies]
 # Testing
@@ -85,9 +77,9 @@ tempfile = "3.24"
 # Benchmarking
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 
-[build-dependencies]
-# gRPC code generation
-tonic-build = "0.12"
+[[bin]]
+name = "master-patient-index"
+path = "src/bin/master_patient_index.rs"
 
 [[bench]]
 name = "matching_bench"

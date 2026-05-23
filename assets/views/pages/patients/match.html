@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+{% block title %}Find match · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li>Match</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Find a match</h1>
+  <p class="muted">Enter known details to find candidate patient records.</p>
+  <form method="post" action="/patients/match">
+    <div class="field-row">
+      <div class="field">
+        <label for="family">Family name</label>
+        <input class="text-input" type="text" id="family" name="family" value="{{ form.family | default(value='') }}" required>
+      </div>
+      <div class="field">
+        <label for="given">Given name(s)</label>
+        <input class="text-input" type="text" id="given" name="given" value="{{ form.given | default(value='') }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="birth_date">Birth date</label>
+        <input class="date-input" type="date" id="birth_date" name="birth_date" value="{{ form.birth_date | default(value='') }}">
+      </div>
+      <div class="field">
+        <label for="threshold">Threshold</label>
+        <input class="text-input" type="number" id="threshold" name="threshold" min="0" max="1" step="0.05" value="{{ form.threshold | default(value='0.7') }}">
+        <div class="hint">0.0–1.0 (default 0.7)</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="button" type="submit">Search</button>
+    </div>
+  </form>
+</section>
+
+{% if matches is defined %}
+<section class="card">
+  <h2>Candidates</h2>
+  {% if matches | length == 0 %}
+    <p class="empty-state">No candidates above threshold.</p>
+  {% else %}
+    <table class="data-table" aria-label="Match candidates">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>DOB</th>
+          <th>Score</th>
+          <th>Quality</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in matches %}
+          <tr>
+            <td>
+              <a href="/patients/{{ m.patient.id }}">{{ m.patient.family_name }}, {{ m.patient.given_names }}</a>
+              <div class="muted"><code>{{ m.patient.id_short }}</code></div>
+            </td>
+            <td>{{ m.patient.birth_date | default(value="—") }}</td>
+            <td>
+              <strong>{{ m.score_pct }}%</strong>
+              <div class="score-bar"><span style="width: {{ m.score_pct }}%"></span></div>
+            </td>
+            <td>
+              {% if m.quality == "Definite" %}<span class="badge success">definite</span>
+              {% elif m.quality == "Probable" %}<span class="badge info">probable</span>
+              {% elif m.quality == "Possible" %}<span class="badge warning">possible</span>
+              {% else %}<span class="badge">unlikely</span>{% endif %}
+            </td>
+            <td class="text-right">
+              <a class="button secondary" href="/patients/{{ m.patient.id }}">View</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

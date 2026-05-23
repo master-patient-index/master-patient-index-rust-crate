@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Patients · MPI{% endblock %}
+{% block breadcrumb %}
+<nav class="breadcrumb-nav" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li>Patients</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h1>Patients</h1>
+    <a class="button" href="/patients/new">Register patient</a>
+  </div>
+
+  <div class="field">
+    <label for="q">Search</label>
+    <input
+      class="text-input"
+      type="search"
+      id="q"
+      name="q"
+      value="{{ q | default(value='') }}"
+      placeholder="Family name, given name, or identifier…"
+      hx-get="/patients/search"
+      hx-trigger="keyup changed delay:300ms, search"
+      hx-target="#patient-rows"
+      hx-swap="innerHTML"
+      hx-indicator="#search-indicator"
+      autocomplete="off">
+    <div class="hint">
+      <span id="search-indicator" class="htmx-indicator">Searching…</span>
+    </div>
+  </div>
+
+  <table class="data-table" aria-label="Patient list">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Family</th>
+        <th>Given</th>
+        <th>DOB</th>
+        <th>Gender</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="patient-rows">
+      {% include "partials/_patient_rows.html" %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

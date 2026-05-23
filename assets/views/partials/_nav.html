@@ -1,0 +1,7 @@
+<nav class="navigation-menu" aria-label="Primary">
+  <a href="/" class="brand">Master Patient Index</a>
+  <a href="/patients"{% if nav == "patients" %} class="active"{% endif %}>Patients</a>
+  <a href="/patients/match"{% if nav == "match" %} class="active"{% endif %}>Match</a>
+  <a href="/patients/merge"{% if nav == "merge" %} class="active"{% endif %}>Merge</a>
+  <a href="/swagger-ui" target="_blank" rel="noopener">API docs</a>
+</nav>
